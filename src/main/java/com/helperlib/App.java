@@ -1,9 +1,7 @@
 package com.helperlib;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import com.helperlib.command.Command;
-import java.io.IOException;
+import com.helperlib.command.*;
+import java.util.Optional;
 
 public class App {
 
@@ -14,41 +12,78 @@ public class App {
         this.configService.initializeConfigFile();
     }
 
-    public String executeCommand(String... command) {
-        var output = new StringBuilder();
-        try {
-            var processBuilder = new ProcessBuilder(command);
-            var process = processBuilder.start();
-
-            var reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-            }
-            reader.close();
-
-            var errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-            var errorOutput = new StringBuilder();
-            while ((line = errorReader.readLine()) != null) {
-                errorOutput.append(line).append("\n");
-            }
-            errorReader.close();
-
-            var exitCode = process.waitFor();
-            if (exitCode != 0) {
-                return "Error: " + errorOutput.toString();
-            }
-        } catch (IOException | InterruptedException e) {
-            return "Exception: " + e.getMessage();
+    /**
+     * Executes a Command object using its metadata.
+     */
+    public void executeCommand(Command command) {
+        if (command != null) {
+            command.execute();
+        } else {
+            System.out.println("Command is null. Cannot execute.");
         }
-        return output.toString();
     }
 
-    public String executeCommandFromConfig(String commandName) {
-        Command commandObj = configService.getCommandByName(commandName);
-        if (commandObj != null) {
-            return executeCommand(commandObj.getCommand(), commandObj.getArgs());
+    /**
+     * Resolves a Command by its name from the configuration and executes it.
+     */
+    public void executeCommandFromConfig(String commandName) {
+        Optional<CommandMetadata> commandMetadataOpt = configService.getCommandMetadataByName(commandName);
+
+        if (commandMetadataOpt.isPresent()) {
+            CommandMetadata metadata = commandMetadataOpt.get();
+            Command command = createCommandFromMetadata(metadata);
+            executeCommand(command);
+        } else {
+            System.out.println("Command not found in configuration: " + commandName);
         }
-        return "Command not found: " + commandName;
     }
+
+    /**
+     * Creates a Command instance based on the specific CommandMetadata type.
+     */
+    private Command createCommandFromMetadata(CommandMetadata metadata) {
+        return switch (metadata) {
+            case ClipboardCommandMetadata clipboardMetadata ->
+                    new ClipboardCommand(clipboardMetadata);
+            case TerminalCommandMetadata terminalMetadata ->
+                    new TerminalCommand(terminalMetadata);
+            default -> throw new IllegalArgumentException(
+                    "Unsupported CommandMetadata type: " + metadata.getClass().getSimpleName()
+            );
+        };
+    }
+
+    /**
+     * Demonstrates copying text directly using the Command system.
+     */
+    public void copyTextToClipboard(String text) {
+        // Create metadata
+        ClipboardCommandMetadata metadata = new ClipboardCommandMetadata(
+                "CopyToClipboard",
+                "Command to copy text to clipboard",
+                text
+        );
+
+        // Create and execute the command
+        Command clipboardCommand = new ClipboardCommand(metadata);
+        executeCommand(clipboardCommand);
+    }
+
+    /*
+        For example, Adding a sample terminal command from config:
+        You could invoke executeCommandFromConfig("SampleTerminalCommand")
+        assuming the resolved metadata exists in the configuration file structured as:
+
+        TerminalCommandMetadata example:
+        {
+            "name": "SampleTerminalCommand",
+            "description": "A command test for terminal execution",
+            "type": "TERMINAL",
+            "commandText": "echo",
+            "arguments": {"ENV_VAR": "value"},
+            "path": "/path/to/directory"
+        }
+     */
+
+
 }

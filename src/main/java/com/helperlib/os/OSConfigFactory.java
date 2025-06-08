@@ -4,7 +4,6 @@ package com.helperlib.os;
 public class OSConfigFactory {
 
     private static final String OS_NAME = System.getProperty("os.name").toLowerCase();
-    private static final boolean IS_TEST_ENV = Boolean.parseBoolean(System.getenv("IS_TEST"));
 
     /**
      * Returns the appropriate OSConfigStrategy based on the current operating system
