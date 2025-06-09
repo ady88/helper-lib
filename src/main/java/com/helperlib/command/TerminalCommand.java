@@ -17,20 +17,32 @@ public class TerminalCommand extends Command {
         String commandText = terminalMetadata.getCommandText();
         Map<String, String> arguments = terminalMetadata.getArguments();
         String path = terminalMetadata.getPath();
+        String environmentPathVariable = terminalMetadata.getEnvironmentPathVariable(); // New
+
         var output = new StringBuilder();
 
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(commandText);
 
+            // Add arguments to environment
             if (arguments != null) {
                 processBuilder.environment().putAll(arguments);
             }
 
+            // Add PATH environment variable if specified
+            if (environmentPathVariable != null && !environmentPathVariable.isEmpty()) {
+                processBuilder.environment().put("PATH", environmentPathVariable);
+            }
+
+            // Set the working directory if specified
             if (path != null && !path.isEmpty()) {
                 processBuilder.directory(new java.io.File(path));
             }
 
+            // Start process
             var process = processBuilder.start();
+
+            // Read output
             var reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line;
             while ((line = reader.readLine()) != null) {
@@ -49,5 +61,6 @@ public class TerminalCommand extends Command {
         }
     }
 }
+
 
 

@@ -7,6 +7,10 @@ public abstract class Command {
         this.metadata = metadata;
     }
 
+    public CommandMetadata getMetadata() {
+        return metadata;
+    }
+
     public abstract void execute();
 }
 

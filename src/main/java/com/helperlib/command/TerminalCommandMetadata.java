@@ -6,12 +6,14 @@ public class TerminalCommandMetadata extends CommandMetadata {
     private String commandText;
     private Map<String, String> arguments;
     private String path;
+    private String environmentPathVariable;
 
-    public TerminalCommandMetadata(String name, String description, String commandText, Map<String, String> arguments, String path) {
+    public TerminalCommandMetadata(String name, String description, String commandText, Map<String, String> arguments, String path, String environmentPathVariable) {
         super(name, description, CommandType.TERMINAL);
         this.commandText = commandText;
         this.arguments = arguments;
         this.path = path;
+        this.environmentPathVariable = environmentPathVariable; // Initialize new variable
     }
 
     public String getCommandText() {
@@ -36,6 +38,14 @@ public class TerminalCommandMetadata extends CommandMetadata {
 
     public void setPath(String path) {
         this.path = path;
+    }
+
+    public String getEnvironmentPathVariable() {
+        return environmentPathVariable; // Getter for the new variable
+    }
+
+    public void setEnvironmentPathVariable(String environmentPathVariable) {
+        this.environmentPathVariable = environmentPathVariable; // Setter for the new variable
     }
 }
 
