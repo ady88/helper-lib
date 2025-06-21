@@ -1,4 +1,7 @@
-package com.helperlib.command;
+package com.helperlib.command.clipboard;
+
+import com.helperlib.api.command.CommandMetadata;
+import com.helperlib.api.command.CommandType;
 
 public class ClipboardCommandMetadata extends CommandMetadata {
     private String textToCopy;

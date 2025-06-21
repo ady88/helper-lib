@@ -1,4 +1,6 @@
-package com.helperlib.command;
+package com.helperlib.command.clipboard;
+
+import com.helperlib.api.command.Command;
 
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;

@@ -1,6 +1,9 @@
-package com.helperlib.command.factory;
+package com.helperlib.command.terminal;
 
-import com.helperlib.command.*;
+import com.helperlib.api.command.Command;
+import com.helperlib.api.command.CommandFactory;
+import com.helperlib.api.command.CommandMetadata;
+import com.helperlib.api.command.CommandType;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 

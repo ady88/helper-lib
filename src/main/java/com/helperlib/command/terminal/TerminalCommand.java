@@ -1,4 +1,6 @@
-package com.helperlib.command;
+package com.helperlib.command.terminal;
+
+import com.helperlib.api.command.Command;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -17,7 +19,7 @@ public class TerminalCommand extends Command {
         String commandText = terminalMetadata.getCommandText();
         Map<String, String> arguments = terminalMetadata.getArguments();
         String path = terminalMetadata.getPath();
-        String environmentPathVariable = terminalMetadata.getEnvironmentPathVariable(); // New
+        String environmentPathVariable = terminalMetadata.getEnvironmentPathVariable();
 
         var output = new StringBuilder();
 

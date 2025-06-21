@@ -1,4 +1,7 @@
-package com.helperlib.command;
+package com.helperlib.command.terminal;
+
+import com.helperlib.api.command.CommandMetadata;
+import com.helperlib.api.command.CommandType;
 
 import java.util.Map;
 

@@ -1,11 +1,15 @@
 package com.helperlib;
 
-import com.helperlib.command.ClipboardCommandMetadata;
-import com.helperlib.command.CommandMetadata;
-import com.helperlib.command.CommandMetadataWrapper;
-import com.helperlib.command.TerminalCommandMetadata;
-import com.helperlib.command.factory.CommandRegistry;
+import com.helperlib.api.command.CommandMetadata;
+import com.helperlib.api.command.CommandType;
+import com.helperlib.command.clipboard.ClipboardCommandMetadata;
+import com.helperlib.command.terminal.TerminalCommandMetadata;
 
+import com.helperlib.command.clipboard.ClipboardCommandFactory;
+import com.helperlib.command.terminal.TerminalCommandFactory;
+import com.helperlib.core.ConfigService;
+import com.helperlib.core.command.CommandMetadataWrapper;
+import com.helperlib.core.command.CommandRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +28,9 @@ class CommandRegistryTest {
         // Check if the configuration file is valid using the isValidJsonFile method
         ConfigService configService = CommandRegistry.getConfigService();
         String configFilePath = configService.getConfigFilePath();
+
+        CommandRegistry.registerFactory(CommandType.CLIPBOARD, new ClipboardCommandFactory());
+        CommandRegistry.registerFactory(CommandType.TERMINAL, new TerminalCommandFactory());
 
         if (!configService.isValidJsonFile(configFilePath)) {
             // If the file is invalid, initialize it to create a valid empty structure
