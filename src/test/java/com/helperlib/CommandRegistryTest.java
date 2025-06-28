@@ -60,9 +60,6 @@ class CommandRegistryTest {
         CommandRegistry.saveCommandToConfig(terminalGroup, terminalCommandMetadata);
     }
 
-
-
-
     @Test
     void testExecuteCommandFromConfig_clipboardCommand() {
         System.out.println("Testing clipboard command execution...");
@@ -155,7 +152,4 @@ class CommandRegistryTest {
                         .anyMatch(cmd -> cmd.getName().equals(commandName)),
                 "Command was successfully removed from the configuration!");
     }
-
-
-
 }

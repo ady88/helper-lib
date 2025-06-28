@@ -2,19 +2,26 @@ package com.helperlib.command.terminal;
 
 import com.helperlib.api.command.Command;
 import com.helperlib.api.command.CommandResult;
+import com.helperlib.api.command.logging.StreamHandler;
 import com.helperlib.core.command.CommandExecutorService;
+import com.helperlib.core.command.logging.FileStreamHandler;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
+
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.concurrent.CompletableFuture;
 
 public class TerminalCommand extends Command {
 
+    private final StreamHandler streamHandler;
+
     public TerminalCommand(TerminalCommandMetadata metadata) {
+        this(metadata, new FileStreamHandler(Paths.get("logs")));
+    }
+
+    public TerminalCommand(TerminalCommandMetadata metadata, StreamHandler streamHandler) {
         super(metadata);
+        this.streamHandler = streamHandler;
     }
 
     @Override
@@ -25,13 +32,6 @@ public class TerminalCommand extends Command {
             TerminalCommandMetadata terminalMetadata = (TerminalCommandMetadata) metadata;
 
             try {
-                // Create output file paths based on commandName_stdout/stderr pattern
-                Path outputFile = createOutputFilePath("stdout");
-                Path errorFile = createOutputFilePath("stderr");
-
-                // Ensure directories exist
-                Files.createDirectories(outputFile.getParent());
-
                 ProcessBuilder processBuilder = new ProcessBuilder(terminalMetadata.getCommandText().split("\\s+"));
 
                 // Add arguments to environment
@@ -52,17 +52,18 @@ public class TerminalCommand extends Command {
 
                 Process process = processBuilder.start();
 
-                // Start real-time stream readers
-                CompletableFuture<Void> outputReader = streamToFile(
-                        process.getInputStream(), outputFile);
-                CompletableFuture<Void> errorReader = streamToFile(
-                        process.getErrorStream(), errorFile);
+                // Start stream handlers
+                CompletableFuture<Void> outputHandler = streamHandler.handleStream(
+                        process.getInputStream(), "stdout", metadata.getName());
+                CompletableFuture<Void> errorHandler = streamHandler.handleStream(
+                        process.getErrorStream(), "stderr", metadata.getName());
 
                 // Wait for process completion
                 int exitCode = process.waitFor();
 
+
                 // Wait for stream readers to finish
-                CompletableFuture.allOf(outputReader, errorReader).join();
+                CompletableFuture.allOf(outputHandler, errorHandler).join();
 
                 long executionTime = System.currentTimeMillis() - startTime;
                 boolean success = exitCode == 0;
@@ -73,38 +74,6 @@ public class TerminalCommand extends Command {
                 long executionTime = System.currentTimeMillis() - startTime;
                 System.err.println("Command execution failed: " + e.getMessage());
                 return new CommandResult(false, -1, executionTime);
-            }
-        }, CommandExecutorService.getVirtualThreadExecutor());
-    }
-
-    private Path createOutputFilePath(String streamType) {
-        String fileName = String.format("%s_%s.log",
-                sanitizeFileName(metadata.getName()),
-                streamType);
-
-        return Paths.get("logs", fileName);
-    }
-
-    private String sanitizeFileName(String input) {
-        // Remove or replace invalid filename characters
-        return input.replaceAll("[^a-zA-Z0-9.-]", "_");
-    }
-
-    private CompletableFuture<Void> streamToFile(InputStream inputStream, Path outputPath) {
-        return CompletableFuture.runAsync(() -> {
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                 BufferedWriter writer = Files.newBufferedWriter(outputPath,
-                         StandardOpenOption.CREATE, StandardOpenOption.WRITE,
-                         StandardOpenOption.TRUNCATE_EXISTING)) {
-
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    writer.write(line);
-                    writer.newLine();
-                    writer.flush(); // Ensure real-time writing
-                }
-            } catch (IOException e) {
-                System.err.println("Error streaming to file " + outputPath + ": " + e.getMessage());
             }
         }, CommandExecutorService.getVirtualThreadExecutor());
     }
