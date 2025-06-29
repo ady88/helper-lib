@@ -4,11 +4,9 @@ import com.helperlib.api.command.Command;
 import com.helperlib.api.command.CommandResult;
 import com.helperlib.api.command.logging.StreamHandler;
 import com.helperlib.core.command.CommandExecutorService;
-import com.helperlib.core.command.logging.FileStreamHandler;
 
 import java.io.*;
 
-import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
 
 public class TerminalCommand extends Command {
