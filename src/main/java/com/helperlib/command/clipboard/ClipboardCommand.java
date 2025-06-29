@@ -2,7 +2,9 @@ package com.helperlib.command.clipboard;
 
 import com.helperlib.api.command.Command;
 import com.helperlib.api.command.CommandResult;
+import com.helperlib.api.command.logging.StreamHandler;
 import com.helperlib.core.command.CommandExecutorService;
+import com.helperlib.core.command.logging.NoOpStreamHandler;
 
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
@@ -11,6 +13,10 @@ import java.util.concurrent.CompletableFuture;
 public class ClipboardCommand extends Command {
 
     public ClipboardCommand(ClipboardCommandMetadata metadata) {
+        this(metadata, new NoOpStreamHandler());
+    }
+
+    public ClipboardCommand(ClipboardCommandMetadata metadata, StreamHandler streamHandler) {
         super(metadata);
     }
 
@@ -36,4 +42,3 @@ public class ClipboardCommand extends Command {
         }, CommandExecutorService.getVirtualThreadExecutor());
     }
 }
-

@@ -15,10 +15,6 @@ public class TerminalCommand extends Command {
 
     private final StreamHandler streamHandler;
 
-    public TerminalCommand(TerminalCommandMetadata metadata) {
-        this(metadata, new FileStreamHandler(Paths.get("logs")));
-    }
-
     public TerminalCommand(TerminalCommandMetadata metadata, StreamHandler streamHandler) {
         super(metadata);
         this.streamHandler = streamHandler;
@@ -60,7 +56,6 @@ public class TerminalCommand extends Command {
 
                 // Wait for process completion
                 int exitCode = process.waitFor();
-
 
                 // Wait for stream readers to finish
                 CompletableFuture.allOf(outputHandler, errorHandler).join();

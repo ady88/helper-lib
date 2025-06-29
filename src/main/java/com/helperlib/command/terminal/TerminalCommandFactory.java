@@ -4,6 +4,7 @@ import com.helperlib.api.command.Command;
 import com.helperlib.api.command.CommandFactory;
 import com.helperlib.api.command.CommandMetadata;
 import com.helperlib.api.command.CommandType;
+import com.helperlib.api.command.logging.StreamHandler;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 
@@ -46,9 +47,9 @@ public class TerminalCommandFactory implements CommandFactory {
     }
 
     @Override
-    public Command createCommand(CommandMetadata metadata) {
+    public Command createCommand(CommandMetadata metadata, StreamHandler streamHandler) {
         // Create a TerminalCommand object using the metadata
-        return new TerminalCommand((TerminalCommandMetadata) metadata);
+        return new TerminalCommand((TerminalCommandMetadata) metadata, streamHandler);
     }
 
     /**

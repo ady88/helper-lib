@@ -10,6 +10,7 @@ import com.helperlib.command.terminal.TerminalCommandFactory;
 import com.helperlib.core.ConfigService;
 import com.helperlib.core.command.CommandMetadataWrapper;
 import com.helperlib.core.command.CommandRegistry;
+import com.helperlib.core.command.logging.NoOpStreamHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -64,7 +65,8 @@ class CommandRegistryTest {
     void testExecuteCommandFromConfig_clipboardCommand() {
         System.out.println("Testing clipboard command execution...");
         String clipboardGroup = "ClipboardGroup"; // Specify the group name
-        CommandRegistry.executeCommandFromConfig(clipboardGroup, "CopyTest");
+        CommandRegistry.executeCommandFromConfig(clipboardGroup, "CopyTest", new NoOpStreamHandler()
+        );
 
         // Manual verification may be needed for clipboard contents
         assertTrue(true, "Executed clipboard command successfully (manual verification needed).");
@@ -75,7 +77,7 @@ class CommandRegistryTest {
     void testExecuteCommandFromConfig_terminalCommand() {
         System.out.println("Testing terminal command execution...");
         String terminalGroup = "TerminalGroup"; // Specify the group name
-        CommandRegistry.executeCommandFromConfig(terminalGroup, "ListFiles");
+        CommandRegistry.executeCommandFromConfig(terminalGroup, "ListFiles", new NoOpStreamHandler());
 
         // Manual verification may be needed for environment-specific outputs
         assertTrue(true, "Executed terminal command successfully (manual verification needed).");
@@ -85,7 +87,7 @@ class CommandRegistryTest {
     void testExecuteCommandFromConfig_nonExistentCommand() {
         System.out.println("Testing non-existent command execution...");
         String unknownGroup = "UnknownGroup"; // Specify a non-existent group
-        CommandRegistry.executeCommandFromConfig(unknownGroup, "NonExistentCommand");
+        CommandRegistry.executeCommandFromConfig(unknownGroup, "NonExistentCommand", new NoOpStreamHandler());
 
         // Properly logs a "not found" message
         assertTrue(true, "Handled non-existent command correctly.");

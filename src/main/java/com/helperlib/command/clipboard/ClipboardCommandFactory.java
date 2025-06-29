@@ -4,6 +4,7 @@ import com.helperlib.api.command.Command;
 import com.helperlib.api.command.CommandFactory;
 import com.helperlib.api.command.CommandMetadata;
 import com.helperlib.api.command.CommandType;
+import com.helperlib.api.command.logging.StreamHandler;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 
@@ -31,8 +32,8 @@ public class ClipboardCommandFactory implements CommandFactory {
     }
 
     @Override
-    public Command createCommand(CommandMetadata metadata) {
-        return new ClipboardCommand((ClipboardCommandMetadata) metadata);
+    public Command createCommand(CommandMetadata metadata, StreamHandler streamHandler) {
+        return new ClipboardCommand((ClipboardCommandMetadata) metadata, streamHandler);
     }
 }
 
