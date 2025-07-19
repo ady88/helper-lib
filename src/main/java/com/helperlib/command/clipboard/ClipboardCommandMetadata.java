@@ -19,4 +19,3 @@ public class ClipboardCommandMetadata extends CommandMetadata {
         this.textToCopy = textToCopy;
     }
 }
-

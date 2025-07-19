@@ -10,14 +10,14 @@ import com.helperlib.command.terminal.TerminalCommandFactory;
 import com.helperlib.core.ConfigService;
 import com.helperlib.core.command.CommandMetadataWrapper;
 import com.helperlib.core.command.CommandRegistry;
+import com.helperlib.core.command.exceptions.GroupNotEmptyException;
 import com.helperlib.core.command.logging.NoOpStreamHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CommandRegistryTest {
 
@@ -153,5 +153,109 @@ class CommandRegistryTest {
                         .stream()
                         .anyMatch(cmd -> cmd.getName().equals(commandName)),
                 "Command was successfully removed from the configuration!");
+    }
+
+    @Test
+    void testAddEmptyGroupToConfig_newGroup() {
+        System.out.println("Testing adding an empty group that doesn't exist...");
+
+        String newGroupName = "NewEmptyGroup";
+
+        // Verify the group doesn't exist initially
+        CommandMetadataWrapper initialWrapper = CommandRegistry.getConfigService().loadCommands();
+        assertTrue(initialWrapper.getCommandsByGroup(newGroupName).isEmpty(),
+                "Group should not exist initially");
+
+        // Add empty group using CommandRegistry (assuming the method exists)
+        CommandRegistry.addEmptyGroupToConfig(newGroupName);
+
+        // Verify the group now exists but is empty
+        CommandMetadataWrapper updatedWrapper = CommandRegistry.getConfigService().loadCommands();
+        assertTrue(updatedWrapper.getGroupNames().contains(newGroupName),
+                "New empty group should be created");
+        assertTrue(updatedWrapper.getCommandsByGroup(newGroupName).isEmpty(),
+                "New group should have no commands");
+    }
+
+    @Test
+    void testAddEmptyGroupToConfig_existingGroupWithCommands() {
+        System.out.println("Testing adding an empty group that already exists with commands...");
+
+        String existingGroupName = "ClipboardGroup"; // This group already has commands from setUp()
+
+        // Verify the group exists and has commands initially
+        CommandMetadataWrapper initialWrapper = CommandRegistry.getConfigService().loadCommands();
+        assertFalse(initialWrapper.getCommandsByGroup(existingGroupName).isEmpty(),
+                "Group should already exist with commands");
+        int initialCommandCount = initialWrapper.getCommandsByGroup(existingGroupName).size();
+
+        // Try to add empty group for existing group
+        CommandRegistry.addEmptyGroupToConfig(existingGroupName);
+
+        // Verify the group still exists and retains its commands
+        CommandMetadataWrapper updatedWrapper = CommandRegistry.getConfigService().loadCommands();
+        assertTrue(updatedWrapper.getGroupNames().contains(existingGroupName),
+                "Existing group should still exist");
+        assertEquals(initialCommandCount, updatedWrapper.getCommandsByGroup(existingGroupName).size(),
+                "Existing group should retain its commands and not be recreated");
+        assertFalse(updatedWrapper.getCommandsByGroup(existingGroupName).isEmpty(),
+                "Existing group should still have its commands");
+    }
+
+    @Test
+    void testRemoveGroup_emptyGroupSuccess() throws GroupNotEmptyException {
+        System.out.println("Testing removing an empty group...");
+
+        String emptyGroupName = "EmptyTestGroup";
+
+        // First, add an empty group
+        CommandRegistry.addEmptyGroupToConfig(emptyGroupName);
+
+        // Verify the empty group exists
+        CommandMetadataWrapper initialWrapper = CommandRegistry.getConfigService().loadCommands();
+        assertTrue(initialWrapper.getGroupNames().contains(emptyGroupName),
+                "Empty group should exist before removal");
+        assertTrue(initialWrapper.getCommandsByGroup(emptyGroupName).isEmpty(),
+                "Group should be empty");
+
+        // Remove the empty group - should succeed
+        CommandRegistry.removeGroupFromConfig(emptyGroupName);
+
+        // Verify the group has been removed
+        CommandMetadataWrapper updatedWrapper = CommandRegistry.getConfigService().loadCommands();
+        assertFalse(updatedWrapper.getGroupNames().contains(emptyGroupName),
+                "Empty group should be successfully removed");
+    }
+
+    @Test
+    void testRemoveGroup_groupWithCommandsThrowsException() {
+        System.out.println("Testing removing a group with commands throws exception...");
+
+        String groupWithCommands = "ClipboardGroup"; // This group has commands from setUp()
+
+        // Verify the group exists and has commands
+        CommandMetadataWrapper initialWrapper = CommandRegistry.getConfigService().loadCommands();
+        assertTrue(initialWrapper.getGroupNames().contains(groupWithCommands),
+                "Group with commands should exist");
+        assertFalse(initialWrapper.getCommandsByGroup(groupWithCommands).isEmpty(),
+                "Group should have commands");
+        int commandCount = initialWrapper.getCommandsByGroup(groupWithCommands).size();
+
+        // Attempt to remove group with commands - should throw GroupNotEmptyException
+        GroupNotEmptyException exception = assertThrows(GroupNotEmptyException.class, () -> {
+            CommandRegistry.removeGroupFromConfig(groupWithCommands);
+        }, "Should throw GroupNotEmptyException when trying to remove group with commands");
+
+        // Verify the exception message
+        String expectedMessage = "Cannot remove group 'ClipboardGroup' because it contains " + commandCount + " command(s). Remove all commands from the group first.";
+        assertEquals(expectedMessage, exception.getMessage(),
+                "Exception should have the correct message");
+
+        // Verify the group still exists after failed removal attempt
+        CommandMetadataWrapper updatedWrapper = CommandRegistry.getConfigService().loadCommands();
+        assertTrue(updatedWrapper.getGroupNames().contains(groupWithCommands),
+                "Group with commands should still exist after failed removal");
+        assertFalse(updatedWrapper.getCommandsByGroup(groupWithCommands).isEmpty(),
+                "Group should still have its commands");
     }
 }
