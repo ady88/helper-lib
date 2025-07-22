@@ -1,24 +1,22 @@
-package com.helperlib.command.terminal;
+package com.helperlib.command.terminaltoggle;
 
 import com.helperlib.api.command.Command;
 import com.helperlib.api.command.CommandFactory;
 import com.helperlib.api.command.CommandMetadata;
 import com.helperlib.api.command.CommandType;
 import com.helperlib.api.command.logging.StreamHandler;
-import jakarta.json.Json;
+import com.helperlib.command.terminal.TerminalCommandMetadata;
+import com.helperlib.command.terminal.TerminalMetadataParser;
+
 import jakarta.json.JsonObject;
 
-import java.util.Map;
-import java.util.stream.Collectors;
-
 /**
- * Factory implementation for TerminalCommands.
+ * Factory implementation for TerminalToggleCommands.
  */
-public class TerminalCommandFactory implements CommandFactory {
-
+public class TerminalToggleCommandFactory implements CommandFactory {
     @Override
     public CommandMetadata parseMetadata(JsonObject jsonObject) {
-        return TerminalMetadataParser.parseFromJson(jsonObject, CommandType.TERMINAL);
+        return TerminalMetadataParser.parseFromJson(jsonObject, CommandType.TERMINAL_TOGGLE);
     }
 
     @Override
@@ -28,9 +26,6 @@ public class TerminalCommandFactory implements CommandFactory {
 
     @Override
     public Command createCommand(CommandMetadata metadata, StreamHandler streamHandler) {
-        return new TerminalCommand((TerminalCommandMetadata) metadata, streamHandler);
+        return new TerminalToggleCommand((TerminalCommandMetadata) metadata, streamHandler);
     }
-
 }
-
-

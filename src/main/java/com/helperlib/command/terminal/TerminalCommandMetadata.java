@@ -19,6 +19,16 @@ public class TerminalCommandMetadata extends CommandMetadata {
         this.environmentPathVariable = environmentPathVariable; // Initialize new variable
     }
 
+    // New constructor that accepts CommandType
+    public TerminalCommandMetadata(String name, String description, CommandType commandType, String commandText, Map<String, String> arguments, String path, String environmentPathVariable) {
+        super(name, description, commandType);
+        this.commandText = commandText;
+        this.arguments = arguments;
+        this.path = path;
+        this.environmentPathVariable = environmentPathVariable;
+    }
+
+
     public String getCommandText() {
         return commandText;
     }

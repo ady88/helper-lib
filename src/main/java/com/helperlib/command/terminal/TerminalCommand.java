@@ -5,8 +5,6 @@ import com.helperlib.api.command.CommandResult;
 import com.helperlib.api.command.logging.StreamHandler;
 import com.helperlib.core.command.CommandExecutorService;
 
-import java.io.*;
-
 import java.util.concurrent.CompletableFuture;
 
 public class TerminalCommand extends Command {
@@ -22,46 +20,14 @@ public class TerminalCommand extends Command {
     public CompletableFuture<CommandResult> executeAsync() {
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
-
             TerminalCommandMetadata terminalMetadata = (TerminalCommandMetadata) metadata;
 
             try {
-                ProcessBuilder processBuilder = new ProcessBuilder(terminalMetadata.getCommandText().split("\\s+"));
-
-                // Add arguments to environment
-                if (terminalMetadata.getArguments() != null) {
-                    processBuilder.environment().putAll(terminalMetadata.getArguments());
-                }
-
-                // Add PATH environment variable if specified
-                if (terminalMetadata.getEnvironmentPathVariable() != null &&
-                        !terminalMetadata.getEnvironmentPathVariable().isEmpty()) {
-                    processBuilder.environment().put("PATH", terminalMetadata.getEnvironmentPathVariable());
-                }
-
-                // Set the working directory if specified
-                if (terminalMetadata.getPath() != null && !terminalMetadata.getPath().isEmpty()) {
-                    processBuilder.directory(new File(terminalMetadata.getPath()));
-                }
-
-                Process process = processBuilder.start();
-
-                // Start stream handlers
-                CompletableFuture<Void> outputHandler = streamHandler.handleStream(
-                        process.getInputStream(), "stdout", metadata.getName());
-                CompletableFuture<Void> errorHandler = streamHandler.handleStream(
-                        process.getErrorStream(), "stderr", metadata.getName());
-
-                // Wait for process completion
-                int exitCode = process.waitFor();
-
-                // Wait for stream readers to finish
-                CompletableFuture.allOf(outputHandler, errorHandler).join();
-
+                CommandResult result = TerminalProcessExecutor.executeProcess(terminalMetadata, streamHandler);
                 long executionTime = System.currentTimeMillis() - startTime;
-                boolean success = exitCode == 0;
 
-                return new CommandResult(success, exitCode, executionTime);
+                // Return new result with actual execution time
+                return new CommandResult(result.success(), result.exitCode(), executionTime);
 
             } catch (Exception e) {
                 long executionTime = System.currentTimeMillis() - startTime;
