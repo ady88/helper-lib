@@ -5,11 +5,7 @@ import com.helperlib.api.command.CommandFactory;
 import com.helperlib.api.command.CommandMetadata;
 import com.helperlib.api.command.CommandType;
 import com.helperlib.api.command.logging.StreamHandler;
-import jakarta.json.Json;
 import jakarta.json.JsonObject;
-
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Factory implementation for TerminalCommands.

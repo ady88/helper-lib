@@ -8,7 +8,6 @@ import com.helperlib.command.terminal.TerminalCommandMetadata;
 import com.helperlib.command.terminal.TerminalProcessExecutor;
 import com.helperlib.core.command.CommandExecutorService;
 
-import java.io.File;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
