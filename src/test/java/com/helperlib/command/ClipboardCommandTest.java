@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 public class ClipboardCommandTest {
     private static final String TEST_CATEGORY = "TestCategory";
@@ -49,6 +50,10 @@ public class ClipboardCommandTest {
     void testClipboardCommand_happyFlow() throws IOException, UnsupportedFlavorException, InterruptedException {
         System.out.println("Testing clipboard command happy flow...");
 
+        // Skip test if running in headless environment (CI/CD)
+        boolean isHeadless = GraphicsEnvironment.isHeadless();
+        assumeTrue(!isHeadless, "Skipping clipboard test in headless environment (CI/CD)");
+
         // Execute the command using CommandRegistry
         CompletableFuture<CommandResult> resultFuture = CommandRegistry.executeCommandFromConfig(
                 TEST_CATEGORY,
@@ -79,5 +84,35 @@ public class ClipboardCommandTest {
                 "Clipboard should contain the expected text: " + TEST_TEXT);
 
         System.out.println("✓ Successfully verified that '" + TEST_TEXT + "' was copied to clipboard");
+    }
+
+    @Test
+    void testClipboardCommand_headlessEnvironment() throws InterruptedException {
+        System.out.println("Testing clipboard command in headless environment...");
+
+        // This test specifically runs in headless environments
+        boolean isHeadless = GraphicsEnvironment.isHeadless();
+        if (!isHeadless) {
+            System.out.println("Skipping headless test - running in graphical environment");
+            return;
+        }
+
+        // Execute the command using CommandRegistry
+        CompletableFuture<CommandResult> resultFuture = CommandRegistry.executeCommandFromConfig(
+                TEST_CATEGORY,
+                TEST_GROUP,
+                TEST_COMMAND_NAME,
+                new NoOpStreamHandler()
+        );
+
+        // Wait for command completion
+        CommandResult result = resultFuture.join();
+
+        // Verify command execution failed gracefully in headless environment
+        assertNotNull(result, "Command result should not be null");
+        assertFalse(result.success(), "Command execution should fail in headless environment");
+        assertTrue(result.executionTimeMs() >= 0, "Execution time should be non-negative");
+
+        System.out.println("✓ Successfully verified that clipboard command fails gracefully in headless environment");
     }
 }
