@@ -15,12 +15,12 @@
 
   <repositories>
     <repository>
-      <id>github</id>
+      <id>api</id>
       <name>GitHub Packages</name>
       <url>https://maven.pkg.github.com/ady88/helper-lib-api</url>
     </repository>
     <repository>
-      <id>github</id>
+      <id>core</id>
       <name>GitHub Packages</name>
       <url>https://maven.pkg.github.com/ady88/helper-lib-core</url>
     </repository>
