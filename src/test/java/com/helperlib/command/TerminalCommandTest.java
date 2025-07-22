@@ -26,8 +26,6 @@ public class TerminalCommandTest {
     private static final String ECHO_COMMAND = "echo Hello, world!";
     private static final String EXPECTED_OUTPUT = "Hello, world!";
 
-    private Path logsDirectory;
-
     @BeforeEach
     void setUp() {
         // Set the test environment property
@@ -38,10 +36,6 @@ public class TerminalCommandTest {
 
         // Initialize config service
         CommandRegistry.getConfigService().initializeConfigFile();
-
-        // Set up logs directory path
-        Path rootPath = Paths.get(CommandRegistry.getConfigService().getConfigFilePath()).getParent();
-        logsDirectory = rootPath.resolve("logs");
 
         // Create and save the test command
         TerminalCommandMetadata testCommandMetadata = new TerminalCommandMetadata(
@@ -61,7 +55,7 @@ public class TerminalCommandTest {
         System.out.println("Testing terminal command happy flow...");
 
         // Create FileStreamHandler with the logs directory
-        FileStreamHandler fileStreamHandler = new FileStreamHandler(logsDirectory);
+        FileStreamHandler fileStreamHandler = new FileStreamHandler();
 
         // Execute the command using CommandRegistry with FileStreamHandler
         CompletableFuture<CommandResult> resultFuture = CommandRegistry.executeCommandFromConfig(
@@ -101,8 +95,13 @@ public class TerminalCommandTest {
      * Helper method to get the expected log file path based on FileStreamHandler logic
      */
     private Path getExpectedLogPath(String commandName, String streamType) {
+        // Get the root path from CommandRegistry
+        Path rootPath = Paths.get(CommandRegistry.getConfigService().getConfigFilePath()).getParent();
+        Path logsDirectory = rootPath.resolve("logs");
+
         String sanitizedCommandName = commandName.replaceAll("[^a-zA-Z0-9.-]", "_");
         String fileName = String.format("%s_%s.log", sanitizedCommandName, streamType);
         return logsDirectory.resolve(fileName);
     }
+
 }
