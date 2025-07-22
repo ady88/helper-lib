@@ -53,31 +53,33 @@ class CommandRegistryTest {
                 "/tmp", ""
         );
 
-        // Add commands to specific groups in the test configurations
+        // Add commands to specific categories and groups in the test configurations
+        String category = "TestCategory";
         String clipboardGroup = "ClipboardGroup";
         String terminalGroup = "TerminalGroup";
 
-        CommandRegistry.saveCommandToConfig(clipboardGroup, clipboardCommandMetadata);
-        CommandRegistry.saveCommandToConfig(terminalGroup, terminalCommandMetadata);
+        // Updated method calls with category parameter
+        CommandRegistry.saveCommandToConfig(category, clipboardGroup, clipboardCommandMetadata);
+        CommandRegistry.saveCommandToConfig(category, terminalGroup, terminalCommandMetadata);
     }
 
     @Test
     void testExecuteCommandFromConfig_clipboardCommand() {
         System.out.println("Testing clipboard command execution...");
+        String category = "TestCategory"; // Add category parameter
         String clipboardGroup = "ClipboardGroup"; // Specify the group name
-        CommandRegistry.executeCommandFromConfig(clipboardGroup, "CopyTest", new NoOpStreamHandler()
-        );
+        CommandRegistry.executeCommandFromConfig(category, clipboardGroup, "CopyTest", new NoOpStreamHandler());
 
         // Manual verification may be needed for clipboard contents
         assertTrue(true, "Executed clipboard command successfully (manual verification needed).");
     }
 
-
     @Test
     void testExecuteCommandFromConfig_terminalCommand() {
         System.out.println("Testing terminal command execution...");
+        String category = "TestCategory"; // Add category parameter
         String terminalGroup = "TerminalGroup"; // Specify the group name
-        CommandRegistry.executeCommandFromConfig(terminalGroup, "ListFiles", new NoOpStreamHandler());
+        CommandRegistry.executeCommandFromConfig(category, terminalGroup, "ListFiles", new NoOpStreamHandler());
 
         // Manual verification may be needed for environment-specific outputs
         assertTrue(true, "Executed terminal command successfully (manual verification needed).");
@@ -86,8 +88,9 @@ class CommandRegistryTest {
     @Test
     void testExecuteCommandFromConfig_nonExistentCommand() {
         System.out.println("Testing non-existent command execution...");
+        String unknownCategory = "UnknownCategory"; // Specify a non-existent category
         String unknownGroup = "UnknownGroup"; // Specify a non-existent group
-        CommandRegistry.executeCommandFromConfig(unknownGroup, "NonExistentCommand", new NoOpStreamHandler());
+        CommandRegistry.executeCommandFromConfig(unknownCategory, unknownGroup, "NonExistentCommand", new NoOpStreamHandler());
 
         // Properly logs a "not found" message
         assertTrue(true, "Handled non-existent command correctly.");
@@ -104,15 +107,16 @@ class CommandRegistryTest {
                 "New test text to copy"
         );
 
-        // Group for the new command
+        // Category and group for the new command
+        String category = "TestCategory";
         String clipboardGroup = "ClipboardGroup";
 
-        // Save the new command using CommandRegistry
-        CommandRegistry.saveCommandToConfig(clipboardGroup, newCommand);
+        // Save the new command using CommandRegistry with category parameter
+        CommandRegistry.saveCommandToConfig(category, clipboardGroup, newCommand);
 
-        // Load all commands using ConfigService and ensure the new command is present in the specified group
+        // Load all commands using ConfigService and ensure the new command is present in the specified category and group
         CommandMetadataWrapper commandMetadataWrapper = CommandRegistry.getConfigService().loadCommands();
-        assertTrue(commandMetadataWrapper.getCommandsByGroup(clipboardGroup)
+        assertTrue(commandMetadataWrapper.getCommandsByCategoryAndGroup(category, clipboardGroup)
                         .stream()
                         .anyMatch(cmd -> cmd.getName().equals("NewCopyCommand")),
                 "New command was successfully added to the configuration!");
@@ -122,7 +126,8 @@ class CommandRegistryTest {
     void testRemoveCommandFromConfig() {
         System.out.println("Testing removing a command from config...");
 
-        // Group and command for testing
+        // Category, group and command for testing
+        String category = "TestCategory";
         String clipboardGroup = "ClipboardGroup";
         String commandName = "CopyTest";
 
@@ -135,21 +140,21 @@ class CommandRegistryTest {
                 "A command to test removing",
                 "Sample text to copy"
         );
-        CommandRegistry.saveCommandToConfig(clipboardGroup, command);
+        CommandRegistry.saveCommandToConfig(category, clipboardGroup, command);
 
         // Verify the command exists in the configuration
         CommandMetadataWrapper commandMetadataWrapper = CommandRegistry.getConfigService().loadCommands();
-        assertTrue(commandMetadataWrapper.getCommandsByGroup(clipboardGroup)
+        assertTrue(commandMetadataWrapper.getCommandsByCategoryAndGroup(category, clipboardGroup)
                         .stream()
                         .anyMatch(cmd -> cmd.getName().equals(commandName)),
                 "Command was successfully added to the configuration!");
 
         // Remove the command using the method under test
-        CommandRegistry.removeCommandFromConfig(clipboardGroup, commandName);
+        CommandRegistry.removeCommandFromConfig(category, clipboardGroup, commandName);
 
         // Reload the commands to verify removal
         commandMetadataWrapper = CommandRegistry.getConfigService().loadCommands();
-        assertFalse(commandMetadataWrapper.getCommandsByGroup(clipboardGroup)
+        assertFalse(commandMetadataWrapper.getCommandsByCategoryAndGroup(category, clipboardGroup)
                         .stream()
                         .anyMatch(cmd -> cmd.getName().equals(commandName)),
                 "Command was successfully removed from the configuration!");
@@ -159,21 +164,22 @@ class CommandRegistryTest {
     void testAddEmptyGroupToConfig_newGroup() {
         System.out.println("Testing adding an empty group that doesn't exist...");
 
+        String category = "TestCategory";
         String newGroupName = "NewEmptyGroup";
 
         // Verify the group doesn't exist initially
         CommandMetadataWrapper initialWrapper = CommandRegistry.getConfigService().loadCommands();
-        assertTrue(initialWrapper.getCommandsByGroup(newGroupName).isEmpty(),
+        assertTrue(initialWrapper.getCommandsByCategoryAndGroup(category, newGroupName).isEmpty(),
                 "Group should not exist initially");
 
         // Add empty group using CommandRegistry (assuming the method exists)
-        CommandRegistry.addEmptyGroupToConfig(newGroupName);
+        CommandRegistry.addEmptyGroupToConfig(category, newGroupName);
 
         // Verify the group now exists but is empty
         CommandMetadataWrapper updatedWrapper = CommandRegistry.getConfigService().loadCommands();
-        assertTrue(updatedWrapper.getGroupNames().contains(newGroupName),
+        assertTrue(updatedWrapper.getGroupNamesByCategory(category).contains(newGroupName),
                 "New empty group should be created");
-        assertTrue(updatedWrapper.getCommandsByGroup(newGroupName).isEmpty(),
+        assertTrue(updatedWrapper.getCommandsByCategoryAndGroup(category, newGroupName).isEmpty(),
                 "New group should have no commands");
     }
 
@@ -181,24 +187,33 @@ class CommandRegistryTest {
     void testAddEmptyGroupToConfig_existingGroupWithCommands() {
         System.out.println("Testing adding an empty group that already exists with commands...");
 
+        String category = "TestCategory";
         String existingGroupName = "ClipboardGroup"; // This group already has commands from setUp()
+
+        // First, ensure the group exists with commands by adding a command
+        var testCommand = new ClipboardCommandMetadata(
+                "TestExistingCommand",
+                "A command for testing existing group",
+                "Test text"
+        );
+        CommandRegistry.saveCommandToConfig(category, existingGroupName, testCommand);
 
         // Verify the group exists and has commands initially
         CommandMetadataWrapper initialWrapper = CommandRegistry.getConfigService().loadCommands();
-        assertFalse(initialWrapper.getCommandsByGroup(existingGroupName).isEmpty(),
+        assertFalse(initialWrapper.getCommandsByCategoryAndGroup(category, existingGroupName).isEmpty(),
                 "Group should already exist with commands");
-        int initialCommandCount = initialWrapper.getCommandsByGroup(existingGroupName).size();
+        int initialCommandCount = initialWrapper.getCommandsByCategoryAndGroup(category, existingGroupName).size();
 
         // Try to add empty group for existing group
-        CommandRegistry.addEmptyGroupToConfig(existingGroupName);
+        CommandRegistry.addEmptyGroupToConfig(category, existingGroupName);
 
         // Verify the group still exists and retains its commands
         CommandMetadataWrapper updatedWrapper = CommandRegistry.getConfigService().loadCommands();
-        assertTrue(updatedWrapper.getGroupNames().contains(existingGroupName),
+        assertTrue(updatedWrapper.getGroupNamesByCategory(category).contains(existingGroupName),
                 "Existing group should still exist");
-        assertEquals(initialCommandCount, updatedWrapper.getCommandsByGroup(existingGroupName).size(),
+        assertEquals(initialCommandCount, updatedWrapper.getCommandsByCategoryAndGroup(category, existingGroupName).size(),
                 "Existing group should retain its commands and not be recreated");
-        assertFalse(updatedWrapper.getCommandsByGroup(existingGroupName).isEmpty(),
+        assertFalse(updatedWrapper.getCommandsByCategoryAndGroup(category, existingGroupName).isEmpty(),
                 "Existing group should still have its commands");
     }
 
@@ -206,24 +221,25 @@ class CommandRegistryTest {
     void testRemoveGroup_emptyGroupSuccess() throws GroupNotEmptyException {
         System.out.println("Testing removing an empty group...");
 
+        String category = "TestCategory";
         String emptyGroupName = "EmptyTestGroup";
 
         // First, add an empty group
-        CommandRegistry.addEmptyGroupToConfig(emptyGroupName);
+        CommandRegistry.addEmptyGroupToConfig(category, emptyGroupName);
 
         // Verify the empty group exists
         CommandMetadataWrapper initialWrapper = CommandRegistry.getConfigService().loadCommands();
-        assertTrue(initialWrapper.getGroupNames().contains(emptyGroupName),
+        assertTrue(initialWrapper.getGroupNamesByCategory(category).contains(emptyGroupName),
                 "Empty group should exist before removal");
-        assertTrue(initialWrapper.getCommandsByGroup(emptyGroupName).isEmpty(),
+        assertTrue(initialWrapper.getCommandsByCategoryAndGroup(category, emptyGroupName).isEmpty(),
                 "Group should be empty");
 
         // Remove the empty group - should succeed
-        CommandRegistry.removeGroupFromConfig(emptyGroupName);
+        CommandRegistry.removeGroupFromConfig(category, emptyGroupName);
 
         // Verify the group has been removed
         CommandMetadataWrapper updatedWrapper = CommandRegistry.getConfigService().loadCommands();
-        assertFalse(updatedWrapper.getGroupNames().contains(emptyGroupName),
+        assertFalse(updatedWrapper.getGroupNamesByCategory(category).contains(emptyGroupName),
                 "Empty group should be successfully removed");
     }
 
@@ -231,31 +247,88 @@ class CommandRegistryTest {
     void testRemoveGroup_groupWithCommandsThrowsException() {
         System.out.println("Testing removing a group with commands throws exception...");
 
+        String category = "TestCategory";
         String groupWithCommands = "ClipboardGroup"; // This group has commands from setUp()
+
+        // First, ensure the group exists with commands by adding a command
+        var testCommand = new ClipboardCommandMetadata(
+                "TestCommandForRemoval",
+                "A command for testing group removal exception",
+                "Test text"
+        );
+        CommandRegistry.saveCommandToConfig(category, groupWithCommands, testCommand);
 
         // Verify the group exists and has commands
         CommandMetadataWrapper initialWrapper = CommandRegistry.getConfigService().loadCommands();
-        assertTrue(initialWrapper.getGroupNames().contains(groupWithCommands),
+        assertTrue(initialWrapper.getGroupNamesByCategory(category).contains(groupWithCommands),
                 "Group with commands should exist");
-        assertFalse(initialWrapper.getCommandsByGroup(groupWithCommands).isEmpty(),
+        assertFalse(initialWrapper.getCommandsByCategoryAndGroup(category, groupWithCommands).isEmpty(),
                 "Group should have commands");
-        int commandCount = initialWrapper.getCommandsByGroup(groupWithCommands).size();
+        int commandCount = initialWrapper.getCommandsByCategoryAndGroup(category, groupWithCommands).size();
 
         // Attempt to remove group with commands - should throw GroupNotEmptyException
         GroupNotEmptyException exception = assertThrows(GroupNotEmptyException.class, () -> {
-            CommandRegistry.removeGroupFromConfig(groupWithCommands);
+            CommandRegistry.removeGroupFromConfig(category, groupWithCommands);
         }, "Should throw GroupNotEmptyException when trying to remove group with commands");
 
         // Verify the exception message
-        String expectedMessage = "Cannot remove group 'ClipboardGroup' because it contains " + commandCount + " command(s). Remove all commands from the group first.";
+        String expectedMessage = "Cannot remove group 'ClipboardGroup' from category 'TestCategory' because it contains " + commandCount + " command(s). Remove all commands from the group first.";
         assertEquals(expectedMessage, exception.getMessage(),
                 "Exception should have the correct message");
 
         // Verify the group still exists after failed removal attempt
         CommandMetadataWrapper updatedWrapper = CommandRegistry.getConfigService().loadCommands();
-        assertTrue(updatedWrapper.getGroupNames().contains(groupWithCommands),
+        assertTrue(updatedWrapper.getGroupNamesByCategory(category).contains(groupWithCommands),
                 "Group with commands should still exist after failed removal");
-        assertFalse(updatedWrapper.getCommandsByGroup(groupWithCommands).isEmpty(),
+        assertFalse(updatedWrapper.getCommandsByCategoryAndGroup(category, groupWithCommands).isEmpty(),
                 "Group should still have its commands");
     }
+
+    @Test
+    void testAddEmptyCategoryToConfig_success() {
+        System.out.println("Testing adding an empty category to config...");
+
+        String newCategoryName = "NewEmptyCategory";
+
+        // Verify the category doesn't exist initially
+        CommandMetadataWrapper initialWrapper = CommandRegistry.getConfigService().loadCommands();
+        assertFalse(initialWrapper.getCategoryNames().contains(newCategoryName),
+                "Category should not exist initially");
+
+        // Add empty category using CommandRegistry
+        CommandRegistry.addEmptyCategoryToConfig(newCategoryName);
+
+        // Verify the category now exists but is empty
+        CommandMetadataWrapper updatedWrapper = CommandRegistry.getConfigService().loadCommands();
+        assertTrue(updatedWrapper.getCategoryNames().contains(newCategoryName),
+                "New empty category should be created");
+        assertTrue(updatedWrapper.getGroupNamesByCategory(newCategoryName).isEmpty(),
+                "New category should have no groups");
+    }
+
+    @Test
+    void testRemoveCategoryFromConfig_success() throws GroupNotEmptyException {
+        System.out.println("Testing removing an empty category from config...");
+
+        String categoryToRemove = "CategoryToRemove";
+
+        // First, add an empty category
+        CommandRegistry.addEmptyCategoryToConfig(categoryToRemove);
+
+        // Verify the category exists
+        CommandMetadataWrapper initialWrapper = CommandRegistry.getConfigService().loadCommands();
+        assertTrue(initialWrapper.getCategoryNames().contains(categoryToRemove),
+                "Category should exist before removal");
+        assertTrue(initialWrapper.getGroupNamesByCategory(categoryToRemove).isEmpty(),
+                "Category should be empty (no groups)");
+
+        // Remove the empty category - should succeed
+        CommandRegistry.removeCategoryFromConfig(categoryToRemove);
+
+        // Verify the category has been removed
+        CommandMetadataWrapper updatedWrapper = CommandRegistry.getConfigService().loadCommands();
+        assertFalse(updatedWrapper.getCategoryNames().contains(categoryToRemove),
+                "Empty category should be successfully removed");
+    }
+
 }

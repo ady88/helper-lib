@@ -12,12 +12,15 @@ import java.util.concurrent.CompletableFuture;
 
 public class ClipboardCommand extends Command {
 
+    private final StreamHandler streamHandler;
+
     public ClipboardCommand(ClipboardCommandMetadata metadata) {
         this(metadata, new NoOpStreamHandler());
     }
 
     public ClipboardCommand(ClipboardCommandMetadata metadata, StreamHandler streamHandler) {
         super(metadata);
+        this.streamHandler = streamHandler; // Fix: Store the handler
     }
 
     @Override
@@ -29,6 +32,8 @@ public class ClipboardCommand extends Command {
             try {
                 StringSelection stringSelection = new StringSelection(clipboardMetadata.getTextToCopy());
                 Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
+
+                // Keep simple console output since StreamHandler is for stream processing
                 System.out.println("Text copied to clipboard successfully.");
 
                 long executionTime = System.currentTimeMillis() - startTime;
