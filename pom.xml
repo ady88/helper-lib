@@ -4,23 +4,19 @@
   <groupId>com.helperlib</groupId>
   <artifactId>helper-lib</artifactId>
   <packaging>jar</packaging>
-  <version>1.2.7</version>
+  <version>1.2.8</version>
   <name>helper-lib</name>
   <url>http://maven.apache.org</url>
   <properties>
     <maven.compiler.source>24</maven.compiler.source>
     <maven.compiler.target>24</maven.compiler.target>
+    <maven.compiler.release>24</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
   <repositories>
     <repository>
-      <id>api</id>
-      <name>GitHub Packages</name>
-      <url>https://maven.pkg.github.com/ady88/helper-lib-api</url>
-    </repository>
-    <repository>
-      <id>core</id>
+      <id>github</id>
       <name>GitHub Packages</name>
       <url>https://maven.pkg.github.com/ady88/helper-lib-core</url>
     </repository>
@@ -35,6 +31,11 @@
   </distributionManagement>
 
   <dependencies>
+    <dependency>
+      <groupId>com.helperlib</groupId>
+      <artifactId>helper-lib-core</artifactId>
+      <version>1.2.9</version>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
@@ -51,16 +52,6 @@
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
       <version>2.19.0</version>
-    </dependency>
-    <dependency>
-      <groupId>com.helperlib</groupId>
-      <artifactId>helper-lib-api</artifactId>
-      <version>1.2.4</version>
-    </dependency>
-    <dependency>
-      <groupId>com.helperlib</groupId>
-      <artifactId>helper-lib-core</artifactId>
-      <version>1.2.5</version>
     </dependency>
   </dependencies>
   <build>
