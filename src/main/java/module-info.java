@@ -2,9 +2,10 @@ module helper.lib {
     // Required modules
     requires helper.lib.core;           // Our core dependency
     requires com.helperlib.api;         // API module (transitive from core, but explicit for clarity)
-    requires jakarta.json;              // For JSON processing
     requires java.base;                 // Base Java module (implicit, but explicit for clarity)
     requires java.desktop;              // For AWT classes used in ClipboardCommand
+    requires jakarta.json;              // For JSON processing
+    uses jakarta.json.spi.JsonProvider;
 
     // Export our command implementations so they can be used by other modules
     exports com.helperlib.command.terminal;
