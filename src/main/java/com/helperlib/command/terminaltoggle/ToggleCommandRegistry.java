@@ -21,11 +21,6 @@ public class ToggleCommandRegistry {
                 30, 30, TimeUnit.SECONDS);
     }
 
-    public static boolean isCommandRunning(String commandId) {
-        ToggleCommand command = activeCommands.get(commandId);
-        return command != null && command.isRunning();
-    }
-
     public static ToggleCommand getOrCreateCommand(String commandId,
                                                    Supplier<ToggleCommand> commandSupplier) {
 
@@ -37,14 +32,6 @@ public class ToggleCommandRegistry {
         ToggleCommand newCommand = commandSupplier.get();
         activeCommands.put(commandId, newCommand);
         return newCommand;
-    }
-
-    public static void registerCommand(String commandId, ToggleCommand command) {
-        activeCommands.put(commandId, command);
-    }
-
-    public static void unregisterCommand(String commandId) {
-        activeCommands.remove(commandId);
     }
 
     private static void cleanupCompletedCommands() {

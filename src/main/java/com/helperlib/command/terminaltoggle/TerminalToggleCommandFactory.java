@@ -17,8 +17,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * Factory implementation for TerminalToggleCommands.
  */
 public class TerminalToggleCommandFactory implements CommandFactory {
-    // Thread-safe map to track running commands
-    private static final Map<String, TerminalToggleCommand> runningCommands = new ConcurrentHashMap<>();
 
     @Override
     public CommandMetadata parseMetadata(JsonObject jsonObject) {
