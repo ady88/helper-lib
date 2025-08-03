@@ -30,24 +30,14 @@ public class TerminalToggleCommandFactory implements CommandFactory {
         return TerminalMetadataParser.serializeToJson((TerminalCommandMetadata) metadata);
     }
 
-    // Factory handles the registry logic
     @Override
     public Command createCommand(CommandMetadata metadata, StreamHandler streamHandler) {
         String commandId = generateCommandId(metadata);
 
-        // Check if already running
-        TerminalToggleCommand existingCommand = runningCommands.get(commandId);
-        if (existingCommand != null && existingCommand.isRunning()) {
-            return existingCommand; // Return existing instance
-        }
-
-        // Create new command - unchanged constructor
-        TerminalToggleCommand newCommand = new TerminalToggleCommand(
-                (TerminalCommandMetadata) metadata, streamHandler);
-        runningCommands.put(commandId, newCommand);
-
-        return newCommand;
+        return (Command) ToggleCommandRegistry.getOrCreateCommand(commandId, () ->
+                new TerminalToggleCommand((TerminalCommandMetadata) metadata, streamHandler));
     }
+
 
 
 
@@ -59,16 +49,6 @@ public class TerminalToggleCommandFactory implements CommandFactory {
                 terminalMetadata.getName(),
                 terminalMetadata.getCommandText().hashCode(),
                 terminalMetadata.getPath().hashCode());
-    }
-
-
-    private void cleanupCompletedCommands() {
-        runningCommands.entrySet().removeIf(entry -> !entry.getValue().isRunning());
-    }
-
-    // Optional: Get running command by ID
-    public static TerminalToggleCommand getRunningCommand(String commandId) {
-        return runningCommands.get(commandId);
     }
 
 }
