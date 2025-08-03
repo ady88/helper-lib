@@ -10,9 +10,6 @@ import com.helperlib.command.terminal.TerminalMetadataParser;
 
 import jakarta.json.JsonObject;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 /**
  * Factory implementation for TerminalToggleCommands.
  */
