@@ -83,37 +83,6 @@
           </execution>
         </executions>
       </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jlink-plugin</artifactId>
-        <version>3.1.0</version>
-        <configuration>
-          <classifier>runtime</classifier>
-          <modulePaths>
-            <modulePath>${project.build.directory}/classes</modulePath>
-            <modulePath>${project.build.directory}/dependencies</modulePath>
-          </modulePaths>
-          <addModules>
-            <addModule>helper.lib</addModule>
-          </addModules>
-          <launcher>helper-lib=helper.lib/com.helperlib.command.Main</launcher>
-          <compress>2</compress>
-          <noHeaderFiles>true</noHeaderFiles>
-          <noManPages>true</noManPages>
-          <stripDebug>true</stripDebug>
-          <outputDirectory>${project.build.directory}/jlink-runtime</outputDirectory>
-        </configuration>
-        <executions>
-          <execution>
-            <id>create-runtime</id>
-            <phase>post-integration-test</phase>
-            <goals>
-              <goal>jlink</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
   </build>
 </project>
