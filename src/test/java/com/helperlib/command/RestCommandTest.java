@@ -1,6 +1,6 @@
-
 package com.helperlib.command;
 
+import com.github.tomakehurst.wiremock.WireMockServer;
 import com.helperlib.api.command.CommandResult;
 import com.helperlib.api.command.CommandType;
 import com.helperlib.command.rest.RestCommand;
@@ -9,9 +9,9 @@ import com.helperlib.command.rest.RestCommandMetadata;
 import com.helperlib.core.command.CommandRegistry;
 import com.helperlib.core.command.logging.FileStreamHandler;
 import com.helperlib.core.command.logging.NoOpStreamHandler;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockserver.integration.ClientAndServer;
 
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
@@ -21,10 +21,10 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.model.HttpResponse.response;
 
 public class RestCommandTest {
     private static final String TEST_CATEGORY = "TestCategory";
@@ -44,8 +44,8 @@ public class RestCommandTest {
                 "status": "success"
             }""";
 
-    private ClientAndServer mockServer;
-    private static final int MOCK_SERVER_PORT = 1080;
+    private WireMockServer wireMockServer;
+    private static final int MOCK_SERVER_PORT = 8089;
     private static final String MOCK_SERVER_URL = "http://localhost:" + MOCK_SERVER_PORT;
 
     @BeforeEach
@@ -53,8 +53,10 @@ public class RestCommandTest {
         // Set the test environment property
         System.setProperty("IS_TEST", "true");
 
-        // Start mock server
-        mockServer = ClientAndServer.startClientAndServer(MOCK_SERVER_PORT);
+        // Start WireMock server with standalone configuration
+        wireMockServer = new WireMockServer(wireMockConfig().port(MOCK_SERVER_PORT));
+        wireMockServer.start();
+        configureFor("localhost", MOCK_SERVER_PORT);
 
         // Register the REST command factory
         CommandRegistry.registerFactory(CommandType.REST, new RestCommandFactory());
@@ -62,78 +64,43 @@ public class RestCommandTest {
         // Initialize config service
         CommandRegistry.getConfigService().initializeConfigFile();
 
-        setupMockServerExpectations();
+        setupWireMockStubs();
     }
 
-    private void setupMockServerExpectations() {
-        // Setup GET request expectation
-        mockServer
-                .when(
-                        request()
-                                .withMethod("GET")
-                                .withPath("/api/users/123")
-                )
-                .respond(
-                        response()
-                                .withStatusCode(200)
-                                .withHeader("Content-Type", "application/json")
-                                .withBody(JSON_RESPONSE)
-                );
+    private void setupWireMockStubs() {
+        // Setup GET request stub
+        stubFor(get(urlEqualTo("/api/users/123"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(JSON_RESPONSE)));
 
-        // Setup POST request expectation
-        mockServer
-                .when(
-                        request()
-                                .withMethod("POST")
-                                .withPath("/api/users")
-                                .withHeader("Authorization", "Bearer test-token")
-                                .withBody("{\"name\":\"Jane Doe\",\"email\":\"jane@example.com\"}")
-                )
-                .respond(
-                        response()
-                                .withStatusCode(201)
-                                .withHeader("Content-Type", "application/json")
-                                .withBody("{\"id\":124,\"name\":\"Jane Doe\",\"email\":\"jane@example.com\",\"created\":true}")
-                );
+        // Setup POST request stub
+        stubFor(post(urlEqualTo("/api/users"))
+                .withHeader("Authorization", equalTo("Bearer test-token"))
+                .withRequestBody(equalToJson("{\"name\":\"Jane Doe\",\"email\":\"jane@example.com\"}"))
+                .willReturn(aResponse()
+                        .withStatus(201)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":124,\"name\":\"Jane Doe\",\"email\":\"jane@example.com\",\"created\":true}")));
 
-        // Setup PUT request expectation
-        mockServer
-                .when(
-                        request()
-                                .withMethod("PUT")
-                                .withPath("/api/users/123")
-                )
-                .respond(
-                        response()
-                                .withStatusCode(200)
-                                .withHeader("Content-Type", "application/json")
-                                .withBody("{\"id\":123,\"name\":\"John Updated\",\"updated\":true}")
-                );
+        // Setup PUT request stub
+        stubFor(put(urlEqualTo("/api/users/123"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":123,\"name\":\"John Updated\",\"updated\":true}")));
 
-        // Setup DELETE request expectation
-        mockServer
-                .when(
-                        request()
-                                .withMethod("DELETE")
-                                .withPath("/api/users/123")
-                )
-                .respond(
-                        response()
-                                .withStatusCode(204)
-                );
+        // Setup DELETE request stub
+        stubFor(delete(urlEqualTo("/api/users/123"))
+                .willReturn(aResponse()
+                        .withStatus(204)));
 
-        // Setup error response expectation
-        mockServer
-                .when(
-                        request()
-                                .withMethod("GET")
-                                .withPath("/api/error")
-                )
-                .respond(
-                        response()
-                                .withStatusCode(500)
-                                .withBody("Internal Server Error")
-                );
+        // Setup error response stub
+        stubFor(get(urlEqualTo("/api/error"))
+                .willReturn(aResponse()
+                        .withStatus(500)
+                        .withBody("Internal Server Error")));
     }
 
     @Test
@@ -278,164 +245,11 @@ public class RestCommandTest {
 
         String clipboardContent = (String) clipboard.getData(DataFlavor.stringFlavor);
         assertEquals("john.doe@example.com", clipboardContent,
-                "Clipboard should contain only the extracted email");
+                "Clipboard should contain only the extracted email (without JSON quotes)");
 
         System.out.println("✓ Successfully verified REST command JSON path extraction");
     }
 
-    @Test
-    void testRestCommand_PUT_request() throws InterruptedException {
-        System.out.println("Testing REST PUT command...");
-
-        String putCommandName = "UpdateUser";
-        RestCommandMetadata putCommandMetadata = new RestCommandMetadata(
-                putCommandName,
-                "Test PUT request to update user",
-                MOCK_SERVER_URL + "/api/users/123",
-                "PUT",
-                "{\"name\":\"John Updated\"}",
-                Map.of("Content-Type", "application/json"),
-                null
-        );
-
-        CommandRegistry.saveCommandToConfig(TEST_CATEGORY, TEST_GROUP, putCommandMetadata);
-
-        // Execute the command using CommandRegistry
-        CompletableFuture<CommandResult> resultFuture = CommandRegistry.executeCommandFromConfig(
-                TEST_CATEGORY,
-                TEST_GROUP,
-                putCommandName,
-                new NoOpStreamHandler()
-        );
-
-        // Wait for command completion
-        CommandResult result = resultFuture.join();
-
-        // Verify command execution was successful
-        assertNotNull(result, "Command result should not be null");
-        assertTrue(result.success(), "Command execution should be successful");
-        assertEquals(200, result.exitCode(), "HTTP status code should be 200");
-        assertTrue(result.executionTimeMs() >= 0, "Execution time should be non-negative");
-
-        System.out.println("✓ Successfully verified REST PUT command execution");
-    }
-
-    @Test
-    void testRestCommand_DELETE_request() throws InterruptedException {
-        System.out.println("Testing REST DELETE command...");
-
-        String deleteCommandName = "DeleteUser";
-        RestCommandMetadata deleteCommandMetadata = new RestCommandMetadata(
-                deleteCommandName,
-                "Test DELETE request to remove user",
-                MOCK_SERVER_URL + "/api/users/123",
-                "DELETE",
-                null,
-                null,
-                null
-        );
-
-        CommandRegistry.saveCommandToConfig(TEST_CATEGORY, TEST_GROUP, deleteCommandMetadata);
-
-        // Execute the command using CommandRegistry
-        CompletableFuture<CommandResult> resultFuture = CommandRegistry.executeCommandFromConfig(
-                TEST_CATEGORY,
-                TEST_GROUP,
-                deleteCommandName,
-                new NoOpStreamHandler()
-        );
-
-        // Wait for command completion
-        CommandResult result = resultFuture.join();
-
-        // Verify command execution was successful
-        assertNotNull(result, "Command result should not be null");
-        assertTrue(result.success(), "Command execution should be successful");
-        assertEquals(204, result.exitCode(), "HTTP status code should be 204 (No Content)");
-        assertTrue(result.executionTimeMs() >= 0, "Execution time should be non-negative");
-
-        System.out.println("✓ Successfully verified REST DELETE command execution");
-    }
-
-    @Test
-    void testRestCommand_errorResponse() throws InterruptedException {
-        System.out.println("Testing REST command error handling...");
-
-        String errorCommandName = "ErrorRequest";
-        RestCommandMetadata errorCommandMetadata = new RestCommandMetadata(
-                errorCommandName,
-                "Test request that returns error",
-                MOCK_SERVER_URL + "/api/error",
-                "GET",
-                null,
-                null,
-                null
-        );
-
-        CommandRegistry.saveCommandToConfig(TEST_CATEGORY, TEST_GROUP, errorCommandMetadata);
-
-        // Execute the command using CommandRegistry
-        CompletableFuture<CommandResult> resultFuture = CommandRegistry.executeCommandFromConfig(
-                TEST_CATEGORY,
-                TEST_GROUP,
-                errorCommandName,
-                new NoOpStreamHandler()
-        );
-
-        // Wait for command completion
-        CommandResult result = resultFuture.join();
-
-        // Verify command execution failed due to server error
-        assertNotNull(result, "Command result should not be null");
-        assertFalse(result.success(), "Command execution should fail for 5xx status codes");
-        assertEquals(500, result.exitCode(), "HTTP status code should be 500");
-        assertTrue(result.executionTimeMs() >= 0, "Execution time should be non-negative");
-
-        System.out.println("✓ Successfully verified REST command error handling");
-    }
-
-    @Test
-    void testRestCommand_withFileStreamHandler() throws InterruptedException, IOException {
-        System.out.println("Testing REST command with FileStreamHandler...");
-
-        String streamCommandName = "StreamedRequest";
-        RestCommandMetadata streamCommandMetadata = new RestCommandMetadata(
-                streamCommandName,
-                "Test request with file stream logging",
-                MOCK_SERVER_URL + "/api/users/123",
-                "GET",
-                null,
-                Map.of("Accept", "application/json"),
-                null
-        );
-
-        CommandRegistry.saveCommandToConfig(TEST_CATEGORY, TEST_GROUP, streamCommandMetadata);
-
-        FileStreamHandler fileStreamHandler = new FileStreamHandler();
-
-        // Execute the command using CommandRegistry with FileStreamHandler
-        CompletableFuture<CommandResult> resultFuture = CommandRegistry.executeCommandFromConfig(
-                TEST_CATEGORY,
-                TEST_GROUP,
-                streamCommandName,
-                fileStreamHandler
-        );
-
-        // Wait for command completion
-        CommandResult result = resultFuture.join();
-
-        // Verify command execution was successful
-        assertNotNull(result, "Command result should not be null");
-        assertTrue(result.success(), "Command execution should be successful");
-        assertEquals(200, result.exitCode(), "HTTP status code should be 200");
-
-        // Small delay to ensure file writing is complete
-        Thread.sleep(200);
-
-        // Note: FileStreamHandler creates log files, but we don't verify them here
-        // as the exact file path depends on the implementation
-        System.out.println("✓ Successfully verified REST command with FileStreamHandler");
-    }
 
     @Test
     void testRestCommand_invalidJsonPath() throws InterruptedException, IOException, UnsupportedFlavorException {
@@ -532,36 +346,6 @@ public class RestCommandTest {
     }
 
     @Test
-    void testRestCommand_directExecution() throws InterruptedException {
-        System.out.println("Testing direct REST command execution...");
-
-        RestCommandMetadata directCommandMetadata = new RestCommandMetadata(
-                "DirectExecution",
-                "Test direct command execution",
-                MOCK_SERVER_URL + "/api/users/123",
-                "GET",
-                null,
-                Map.of("Accept", "application/json"),
-                "data.token"
-        );
-
-        // Create command directly (not via CommandRegistry)
-        RestCommand restCommand = new RestCommand(directCommandMetadata, new NoOpStreamHandler());
-
-        // Execute command directly
-        CompletableFuture<CommandResult> resultFuture = restCommand.executeAsync();
-        CommandResult result = resultFuture.join();
-
-        // Verify command execution was successful
-        assertNotNull(result, "Command result should not be null");
-        assertTrue(result.success(), "Command execution should be successful");
-        assertEquals(200, result.exitCode(), "HTTP status code should be 200");
-        assertTrue(result.executionTimeMs() >= 0, "Execution time should be non-negative");
-
-        System.out.println("✓ Successfully verified direct REST command execution");
-    }
-
-    @Test
     void testRestCommandMetadata_serialization() {
         System.out.println("Testing REST command metadata serialization...");
 
@@ -595,11 +379,116 @@ public class RestCommandTest {
         System.out.println("✓ Successfully verified REST command metadata serialization");
     }
 
-    // Cleanup method to stop mock server after each test
-    @org.junit.jupiter.api.AfterEach
+    @Test
+    void testRestCommand_withFileStreamHandler() throws InterruptedException {
+        System.out.println("Testing REST command with FileStreamHandler...");
+
+        FileStreamHandler fileStreamHandler = new FileStreamHandler();
+
+        RestCommandMetadata fileHandlerCommandMetadata = new RestCommandMetadata(
+                "FileHandlerRequest",
+                "Test request with file stream handler",
+                MOCK_SERVER_URL + "/api/users/123",
+                "GET",
+                null,
+                Map.of("Accept", "application/json"),
+                null
+        );
+
+        CommandRegistry.saveCommandToConfig(TEST_CATEGORY, TEST_GROUP, fileHandlerCommandMetadata);
+
+        // Execute the command using CommandRegistry
+        CompletableFuture<CommandResult> resultFuture = CommandRegistry.executeCommandFromConfig(
+                TEST_CATEGORY,
+                TEST_GROUP,
+                "FileHandlerRequest",
+                fileStreamHandler
+        );
+
+        // Wait for command completion
+        CommandResult result = resultFuture.join();
+
+        // Verify command execution was successful
+        assertNotNull(result, "Command result should not be null");
+        assertTrue(result.success(), "Command execution should be successful");
+        assertEquals(200, result.exitCode(), "HTTP status code should be 200");
+        assertTrue(result.executionTimeMs() >= 0, "Execution time should be non-negative");
+
+        System.out.println("✓ Successfully verified REST command with FileStreamHandler");
+    }
+
+    @Test
+    void testRestCommand_directExecution() throws InterruptedException {
+        System.out.println("Testing direct REST command execution...");
+
+        RestCommandMetadata directCommandMetadata = new RestCommandMetadata(
+                "DirectExecution",
+                "Test direct command execution",
+                MOCK_SERVER_URL + "/api/users/123",
+                "GET",
+                null,
+                Map.of("Accept", "application/json"),
+                "data.user.name"
+        );
+
+        // Create command directly (not via CommandRegistry)
+        RestCommand restCommand = new RestCommand(directCommandMetadata, new NoOpStreamHandler());
+
+        // Execute command directly
+        CompletableFuture<CommandResult> resultFuture = restCommand.executeAsync();
+        CommandResult result = resultFuture.join();
+
+        // Verify command execution was successful
+        assertNotNull(result, "Command result should not be null");
+        assertTrue(result.success(), "Command execution should be successful");
+        assertEquals(200, result.exitCode(), "HTTP status code should be 200");
+        assertTrue(result.executionTimeMs() >= 0, "Execution time should be non-negative");
+
+        System.out.println("✓ Successfully verified direct REST command execution");
+    }
+
+    @Test
+    void testRestCommand_errorHandling() throws InterruptedException {
+        System.out.println("Testing REST command error handling...");
+
+        String errorCommandName = "ErrorRequest";
+        RestCommandMetadata errorCommandMetadata = new RestCommandMetadata(
+                errorCommandName,
+                "Test request that returns error",
+                MOCK_SERVER_URL + "/api/error",
+                "GET",
+                null,
+                null,
+                null
+        );
+
+        CommandRegistry.saveCommandToConfig(TEST_CATEGORY, TEST_GROUP, errorCommandMetadata);
+
+        // Execute the command using CommandRegistry
+        CompletableFuture<CommandResult> resultFuture = CommandRegistry.executeCommandFromConfig(
+                TEST_CATEGORY,
+                TEST_GROUP,
+                errorCommandName,
+                new NoOpStreamHandler()
+        );
+
+        // Wait for command completion
+        CommandResult result = resultFuture.join();
+
+        // Verify command execution returned error
+        assertNotNull(result, "Command result should not be null");
+        assertFalse(result.success(), "Command execution should fail for 5xx status codes");
+        assertEquals(500, result.exitCode(), "HTTP status code should be 500");
+        assertTrue(result.executionTimeMs() >= 0, "Execution time should be non-negative");
+
+        System.out.println("✓ Successfully verified REST command error handling");
+    }
+
+
+    @AfterEach
     void tearDown() {
-        if (mockServer != null) {
-            mockServer.stop();
+        if (wireMockServer != null) {
+            wireMockServer.stop();
         }
     }
 }

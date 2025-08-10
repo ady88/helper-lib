@@ -12,6 +12,7 @@
     <maven.compiler.target>24</maven.compiler.target>
     <maven.compiler.release>24</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <wiremock.version>3.9.2</wiremock.version>
   </properties>
 
   <repositories>
@@ -29,23 +30,7 @@
       <url>https://maven.pkg.github.com/ady88/helper-lib</url>
     </repository>
   </distributionManagement>
-  <!-- Add this dependencyManagement section BEFORE the dependencies section -->
-  <dependencyManagement>
-    <dependencies>
-      <!-- Force a single version of jakarta.activation -->
-      <dependency>
-        <groupId>jakarta.activation</groupId>
-        <artifactId>jakarta.activation-api</artifactId>
-        <version>2.1.0</version>
-      </dependency>
-      <!-- Exclude the older version -->
-      <dependency>
-        <groupId>jakarta.activation</groupId>
-        <artifactId>jakarta.activation</artifactId>
-        <version>2.1.0</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
+
 
   <dependencies>
     <dependency>
@@ -69,21 +54,16 @@
       <artifactId>parsson</artifactId>
       <version>1.1.7</version>
     </dependency>
-    <!-- Add this dependency to the existing dependencies section -->
-    <dependency>
-      <groupId>org.mock-server</groupId>
-      <artifactId>mockserver-junit-jupiter</artifactId>
-      <version>5.15.0</version>
-      <scope>test</scope>
-      <exclusions>
-        <!-- Exclude conflicting jakarta.activation versions -->
-        <exclusion>
-          <groupId>jakarta.activation</groupId>
-          <artifactId>jakarta.activation</artifactId>
-        </exclusion>
-      </exclusions>
 
+    <!-- WireMock for testing - Updated dependency -->
+    <dependency>
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock-standalone</artifactId>
+      <version>${wiremock.version}</version>
+      <scope>test</scope>
     </dependency>
+
+
 
   </dependencies>
   <build>
