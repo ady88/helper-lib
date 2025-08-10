@@ -29,6 +29,23 @@
       <url>https://maven.pkg.github.com/ady88/helper-lib</url>
     </repository>
   </distributionManagement>
+  <!-- Add this dependencyManagement section BEFORE the dependencies section -->
+  <dependencyManagement>
+    <dependencies>
+      <!-- Force a single version of jakarta.activation -->
+      <dependency>
+        <groupId>jakarta.activation</groupId>
+        <artifactId>jakarta.activation-api</artifactId>
+        <version>2.1.0</version>
+      </dependency>
+      <!-- Exclude the older version -->
+      <dependency>
+        <groupId>jakarta.activation</groupId>
+        <artifactId>jakarta.activation</artifactId>
+        <version>2.1.0</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
