@@ -30,9 +30,6 @@ public class TerminalToggleCommandTest {
     // Using a Java-based approach that should work consistently across platforms
     private static final String LONG_RUNNING_COMMAND = "java -cp . -c \"try { Thread.sleep(3000); System.out.println(\\\"Completed\\\"); } catch (Exception e) { System.exit(1); }\"";
 
-    // Alternative approach using a more reliable command
-    private static final String ALTERNATIVE_LONG_RUNNING_COMMAND = "ping -c 10 127.0.0.1"; // Should work on most systems
-
     @BeforeEach
     void setUp() {
         // Set the test environment property
@@ -44,12 +41,22 @@ public class TerminalToggleCommandTest {
         // Initialize config service
         CommandRegistry.getConfigService().initializeConfigFile();
 
+        String os = System.getProperty("os.name").toLowerCase();
+
+        String commandText;
+        if (os.contains("win")) {
+            commandText = String.format("ping -n %d %s", 2, "127.0.0.1");
+        } else {
+            commandText = String.format("ping -c %s", "127.0.0.1");
+        }
+
+
         // Create and save the test command - use ping which should be available on most systems
         TerminalCommandMetadata testCommandMetadata = new TerminalCommandMetadata(
                 TEST_COMMAND_NAME,
                 "Test long-running command that can be toggled",
                 CommandType.TERMINAL_TOGGLE,
-                ALTERNATIVE_LONG_RUNNING_COMMAND, // Use ping instead of sleep
+                commandText, // Use ping instead of sleep
                 Map.of("LANG", "en_US.UTF-8"),
                 "",
                 ""

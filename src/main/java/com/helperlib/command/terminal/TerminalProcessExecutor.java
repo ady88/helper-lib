@@ -4,6 +4,7 @@ import com.helperlib.api.command.CommandResult;
 import com.helperlib.api.command.logging.StreamHandler;
 
 import java.io.File;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -25,7 +26,7 @@ public class TerminalProcessExecutor {
     public static CommandResult executeProcess(TerminalCommandMetadata metadata,
                                                StreamHandler streamHandler,
                                                AtomicReference<Process> processRef) throws Exception {
-        ProcessBuilder processBuilder = new ProcessBuilder(metadata.getCommandText().split("\\s+"));
+        ProcessBuilder processBuilder = new ProcessBuilder(buildPlatformCommand(metadata.getCommandText()));
 
         // Add arguments to environment
         if (metadata.getArguments() != null) {
@@ -73,5 +74,15 @@ public class TerminalProcessExecutor {
                                                StreamHandler streamHandler) throws Exception {
         return executeProcess(metadata, streamHandler, null);
     }
+
+    public static List<String> buildPlatformCommand(String rawCommand) {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            return List.of("cmd.exe", "/c", rawCommand);
+        } else {
+            return List.of(rawCommand.split("\\s+"));
+        }
+    }
+
 
 }
