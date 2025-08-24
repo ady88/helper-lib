@@ -47,9 +47,8 @@ public class TerminalToggleCommandTest {
         if (os.contains("win")) {
             commandText = String.format("ping -n %d %s", 2, "127.0.0.1");
         } else {
-            commandText = String.format("ping -c %s", "127.0.0.1");
+            commandText = "ping -c 127.0.0.1";
         }
-
 
         // Create and save the test command - use ping which should be available on most systems
         TerminalCommandMetadata testCommandMetadata = new TerminalCommandMetadata(
