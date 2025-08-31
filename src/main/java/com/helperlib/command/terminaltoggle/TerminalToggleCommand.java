@@ -14,22 +14,27 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class TerminalToggleCommand extends Command implements ToggleCommand {
     private final StreamHandler streamHandler;
+
+    // State for the main/start command
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
     private final AtomicReference<Process> currentProcess = new AtomicReference<>();
     private final AtomicReference<CompletableFuture<CommandResult>> currentExecution = new AtomicReference<>();
 
-    public TerminalToggleCommand(TerminalCommandMetadata metadata, StreamHandler streamHandler) {
+    // State for the toggle command
+    private final AtomicBoolean isToggling = new AtomicBoolean(false);
+    private final AtomicReference<Process> currentToggleProcess = new AtomicReference<>();
+    private final AtomicReference<CompletableFuture<CommandResult>> currentToggleExecution = new AtomicReference<>();
+
+    public TerminalToggleCommand(TerminalToggleCommandMetadata metadata, StreamHandler streamHandler) {
         super(metadata);
         this.streamHandler = streamHandler;
     }
 
     @Override
     public CompletableFuture<CommandResult> executeAsync() {
-        // Prevent multiple simultaneous executions
+        // Prevent multiple simultaneous main/start executions
         if (isRunning.get()) {
-            return CompletableFuture.completedFuture(
-                    new CommandResult(false, -1, 0)
-            );
+            return CompletableFuture.completedFuture(new CommandResult(false, -1, 0));
         }
 
         CompletableFuture<CommandResult> executionFuture = CompletableFuture.supplyAsync(() -> {
@@ -39,7 +44,7 @@ public class TerminalToggleCommand extends Command implements ToggleCommand {
                 return new CommandResult(false, -1, 0);
             }
 
-            TerminalCommandMetadata terminalMetadata = (TerminalCommandMetadata) metadata;
+            TerminalToggleCommandMetadata terminalMetadata = (TerminalToggleCommandMetadata) metadata;
 
             try {
                 System.out.println("Started toggleable terminal command: " + terminalMetadata.getName());
@@ -49,24 +54,20 @@ public class TerminalToggleCommand extends Command implements ToggleCommand {
 
                 long executionTime = System.currentTimeMillis() - startTime;
 
-                // Log the result for debugging
                 if (result.success()) {
-                    System.out.println("Terminal toggle command completed successfully");
-                } else if (result.exitCode() == 130 || result.exitCode() == 143) {
-                    System.out.println("Terminal toggle command was cancelled");
+                    System.out.println("Terminal toggle command (main/start) completed successfully");
                 } else {
-                    System.out.println("Terminal toggle command failed with exit code: " + result.exitCode());
+                    System.out.println("Terminal toggle command (main/start) failed with exit code: " + result.exitCode());
                 }
 
                 return new CommandResult(result.success(), result.exitCode(), executionTime);
-
             } catch (InterruptedException e) {
                 long executionTime = System.currentTimeMillis() - startTime;
-                System.out.println("Terminal toggle command was interrupted: " + e.getMessage());
+                System.out.println("Terminal toggle command (main/start) was interrupted: " + e.getMessage());
                 return new CommandResult(false, 130, executionTime);
             } catch (Exception e) {
                 long executionTime = System.currentTimeMillis() - startTime;
-                System.err.println("Terminal toggle command execution failed: " + e.getMessage());
+                System.err.println("Terminal toggle command (main/start) execution failed: " + e.getMessage());
                 return new CommandResult(false, -1, executionTime);
             } finally {
                 isRunning.set(false);
@@ -79,57 +80,74 @@ public class TerminalToggleCommand extends Command implements ToggleCommand {
     }
 
     @Override
-    public CompletableFuture<CommandResult> cancelAsync() {
-        return CompletableFuture.supplyAsync(() -> {
+    public CompletableFuture<CommandResult> toggleAsync() {
+        // Prevent multiple simultaneous toggles, but allow toggling while the main command may be running
+        if (isToggling.get()) {
+            return CompletableFuture.completedFuture(new CommandResult(false, -1, 0));
+        }
+
+        CompletableFuture<CommandResult> toggleFuture = CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
 
-            if (!isRunning.get()) {
-                System.out.println("Command is not currently running");
-                return new CommandResult(true, 0, 0);
-            }
-
-            Process process = currentProcess.get();
-            if (process == null) {
-                System.out.println("No active process to cancel");
+            if (!isToggling.compareAndSet(false, true)) {
                 return new CommandResult(false, -1, 0);
             }
 
+            TerminalToggleCommandMetadata meta = (TerminalToggleCommandMetadata) metadata;
+            String toggleCmd = meta.getToggleCommandText();
+
+            if (toggleCmd == null || toggleCmd.isBlank()) {
+                isToggling.set(false);
+                return new CommandResult(false, -1, 0);
+            }
+
+            // Build a temporary metadata for the toggle command execution
+            TerminalCommandMetadata toggleMetadata = new TerminalCommandMetadata(
+                    meta.getName() + " (toggle)",
+                    meta.getDescription(),
+                    meta.getType(),
+                    toggleCmd,
+                    meta.getArguments(),
+                    meta.getPath(),
+                    meta.getEnvironmentPathVariable()
+            );
+
             try {
-                System.out.println("Cancelling terminal toggle command: " + metadata.getName());
+                System.out.println("Running toggle command for: " + meta.getName());
 
-                // First try graceful termination
-                process.destroy();
-
-                // Wait a bit for graceful shutdown
-                Thread.sleep(2000);
-
-                // If still alive, force kill
-                if (process.isAlive()) {
-                    System.out.println("Force killing terminal toggle command: " + metadata.getName());
-                    process.destroyForcibly();
-                }
-
-                // Wait for the execution future to complete
-                CompletableFuture<CommandResult> execution = currentExecution.get();
-                if (execution != null) {
-                    execution.join(); // Wait for cleanup
-                }
+                CommandResult result = TerminalProcessExecutor.executeProcess(
+                        toggleMetadata, streamHandler, currentToggleProcess);
 
                 long executionTime = System.currentTimeMillis() - startTime;
-                System.out.println("Command cancelled successfully");
-                return new CommandResult(true, 130, executionTime);
 
+                if (result.success()) {
+                    System.out.println("Toggle command completed successfully");
+                } else {
+                    System.out.println("Toggle command failed with exit code: " + result.exitCode());
+                }
+
+                return new CommandResult(result.success(), result.exitCode(), executionTime);
+            } catch (InterruptedException e) {
+                long executionTime = System.currentTimeMillis() - startTime;
+                System.out.println("Toggle command was interrupted: " + e.getMessage());
+                return new CommandResult(false, 130, executionTime);
             } catch (Exception e) {
                 long executionTime = System.currentTimeMillis() - startTime;
-                System.err.println("Error cancelling terminal toggle command: " + e.getMessage());
+                System.err.println("Toggle command execution failed: " + e.getMessage());
                 return new CommandResult(false, -1, executionTime);
+            } finally {
+                isToggling.set(false);
+                currentToggleProcess.set(null);
             }
         }, CommandExecutorService.getVirtualThreadExecutor());
+
+        currentToggleExecution.set(toggleFuture);
+        return toggleFuture;
     }
 
     @Override
     public boolean isRunning() {
-        return isRunning.get() && currentProcess.get() != null && currentProcess.get().isAlive();
+        Process p = currentProcess.get();
+        return isRunning.get() && p != null && p.isAlive();
     }
-
 }
