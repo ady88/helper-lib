@@ -54,11 +54,11 @@ public class TerminalCommandMetadata extends CommandMetadata {
     }
 
     public String getEnvironmentPathVariable() {
-        return environmentPathVariable; // Getter for the new variable
+        return environmentPathVariable;
     }
 
     public void setEnvironmentPathVariable(String environmentPathVariable) {
-        this.environmentPathVariable = environmentPathVariable; // Setter for the new variable
+        this.environmentPathVariable = environmentPathVariable;
     }
 }
 
