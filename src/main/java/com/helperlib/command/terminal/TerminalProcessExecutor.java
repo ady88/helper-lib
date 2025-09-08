@@ -76,13 +76,20 @@ public class TerminalProcessExecutor {
     }
 
     public static List<String> buildPlatformCommand(String rawCommand) {
+        if (rawCommand == null || rawCommand.isBlank()) {
+            throw new IllegalArgumentException("rawCommand must not be null or blank");
+        }
+
         String os = System.getProperty("os.name").toLowerCase();
         if (os.contains("win")) {
+            // Use cmd to support pipes, redirection, etc. on Windows
             return List.of("cmd.exe", "/c", rawCommand);
         } else {
-            return List.of(rawCommand.split("\\s+"));
+            // Use a POSIX shell so pipes, redirection, globs, and quoting work on macOS/Linux
+            return List.of("/bin/sh", "-c", rawCommand);
         }
     }
+
 
 
 }
