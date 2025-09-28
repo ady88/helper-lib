@@ -5,6 +5,7 @@ import com.helperlib.api.command.CommandType;
 import com.helperlib.command.tunneltoggle.TunnelAuthType;
 import com.helperlib.command.tunneltoggle.TunnelToggleCommand;
 import com.helperlib.command.tunneltoggle.TunnelToggleCommandMetadata;
+
 import com.sun.net.httpserver.HttpServer;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.forward.AcceptAllForwardingFilter;
@@ -13,6 +14,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import org.bouncycastle.openssl.PEMWriter;
+
+
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -22,6 +29,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -135,6 +143,76 @@ public class TunnelToggleCommandTest {
         Optional<String> afterStop = httpGetOptional(url, Duration.ofMillis(500));
         assertTrue(afterStop.isEmpty(), "Tunnel should be closed and not accept connections");
     }
+
+    @Test
+    void testTunnelToggleCommand_privateKeyAuth_success() throws Exception {
+        int localPort = findFreePort();
+
+        // Generate a test key pair for this test
+        KeyPair keyPair = KeyPairGenerator.getInstance("RSA").generateKeyPair();
+
+        // Start SSH server with public key auth
+        sshd.setPublickeyAuthenticator((username, key, session) ->
+                username.equals("testuser") && key.equals(keyPair.getPublic()));
+
+        // Create a temporary private key file
+        Path privateKeyPath = Files.createTempFile("test_private_key", "");
+        try (PEMWriter pemWriter = new PEMWriter(new FileWriter(privateKeyPath.toFile()))) {
+            pemWriter.writeObject(keyPair.getPrivate());
+        }
+
+        TunnelToggleCommandMetadata meta = new TunnelToggleCommandMetadata(
+                "PrivateKeyTunnel",
+                "SSH tunnel test - private key auth",
+                CommandType.TERMINAL_TOGGLE,
+                "127.0.0.1",
+                sshPort,
+                "testuser",
+                TunnelAuthType.PRIVATE_KEY,
+                null, // no password
+                privateKeyPath.toString(),
+                null, // no passphrase
+                false,
+                null,
+                "127.0.0.1",
+                localPort,
+                "127.0.0.1",
+                backendPort,
+                5_000,
+                5
+        );
+
+        TunnelToggleCommand command = new TunnelToggleCommand(meta);
+
+        CompletableFuture<CommandResult> runFuture = command.executeAsync();
+
+        // Wait until tunnel is up (up to ~3 seconds)
+        waitUntilTrue(command::isRunning, 3000, "Tunnel did not start in time");
+
+        // Verify traffic flows through the tunnel
+        String url = "http://127.0.0.1:" + localPort + "/ping";
+        String body = httpGet(url, Duration.ofSeconds(2));
+        assertEquals("pong", body, "Expected backend response through the tunnel");
+
+        // Stop tunnel via toggle
+        CommandResult toggleResult = command.toggleAsync().join();
+        assertNotNull(toggleResult);
+        assertTrue(toggleResult.success(), "toggle should succeed");
+        assertEquals(130, toggleResult.exitCode(), "toggle exit code should be 130");
+
+        // The main future resolves after the session closes
+        CommandResult runResult = runFuture.join();
+        assertNotNull(runResult);
+        assertTrue(runResult.success(), "run should conclude successfully after stop");
+
+        // Ensure tunnel is no longer reachable
+        Optional<String> afterStop = httpGetOptional(url, Duration.ofMillis(500));
+        assertTrue(afterStop.isEmpty(), "Tunnel should be closed and not accept connections");
+
+        // Clean up
+        Files.deleteIfExists(privateKeyPath);
+    }
+
 
     @Test
     void testTunnelToggleCommand_negative_invalidCredentials() {

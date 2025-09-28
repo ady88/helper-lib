@@ -4,7 +4,7 @@
   <groupId>com.helperlib</groupId>
   <artifactId>helper-lib</artifactId>
   <packaging>jar</packaging>
-  <version>1.2.18</version>
+  <version>1.2.19</version>
   <name>helper-lib</name>
   <url>http://maven.apache.org</url>
   <properties>
@@ -73,6 +73,22 @@
       <version>${sshd.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk18on -->
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>1.82</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk18on</artifactId>
+      <version>1.82</version>
+      <scope>test</scope>
+    </dependency>
+
+
 
     <!-- SSH library (JSch) -->
     <dependency>
