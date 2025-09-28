@@ -1,7 +1,6 @@
 package com.helperlib.command;
 
 import com.helperlib.api.command.CommandResult;
-import com.helperlib.api.command.CommandType;
 import com.helperlib.command.tunneltoggle.TunnelAuthType;
 import com.helperlib.command.tunneltoggle.TunnelToggleCommand;
 import com.helperlib.command.tunneltoggle.TunnelToggleCommandMetadata;
