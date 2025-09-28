@@ -4,7 +4,7 @@
   <groupId>com.helperlib</groupId>
   <artifactId>helper-lib</artifactId>
   <packaging>jar</packaging>
-  <version>1.2.17</version>
+  <version>1.2.18</version>
   <name>helper-lib</name>
   <url>http://maven.apache.org</url>
   <properties>
@@ -13,6 +13,10 @@
     <maven.compiler.release>24</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <wiremock.version>3.9.2</wiremock.version>
+    <jsch.version>2.27.3</jsch.version>
+    <sshd.version>2.16.0</sshd.version>
+    <slf4j.version>2.0.17</slf4j.version>
+
   </properties>
 
   <repositories>
@@ -61,6 +65,36 @@
       <version>${wiremock.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <!-- Test SSH server (Apache MINA SSHD) -->
+    <dependency>
+      <groupId>org.apache.sshd</groupId>
+      <artifactId>sshd-core</artifactId>
+      <version>${sshd.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- SSH library (JSch) -->
+    <dependency>
+      <groupId>com.github.mwiede</groupId>
+      <artifactId>jsch</artifactId>
+      <version>${jsch.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>${slf4j.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+
 
   </dependencies>
   <build>
