@@ -3,7 +3,6 @@ package com.helperlib.command.tunneltoggle;
 import com.helperlib.api.command.Command;
 import com.helperlib.api.command.CommandFactory;
 import com.helperlib.api.command.CommandMetadata;
-import com.helperlib.api.command.CommandType;
 import com.helperlib.api.command.logging.StreamHandler;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
@@ -42,11 +41,8 @@ public class TunnelToggleCommandFactory implements CommandFactory {
         int connectTimeoutMs = json.getInt("connectTimeoutMs", 10_000);
         int keepAliveIntervalSec = json.getInt("keepAliveIntervalSec", 30);
 
-        // Prefer a dedicated type (e.g., TUNNEL_TOGGLE)
-        CommandType type = CommandType.valueOf(json.getString("type", "TUNNEL_TOGGLE"));
-
         return new TunnelToggleCommandMetadata(
-                name, description, type,
+                name, description,
                 host, port, username,
                 authType, password, privateKeyPath, passphrase,
                 strictHK, knownHostsPath,

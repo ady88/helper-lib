@@ -33,7 +33,6 @@ public class TunnelToggleCommandMetadata extends CommandMetadata {
     public TunnelToggleCommandMetadata(
             String name,
             String description,
-            CommandType type,
             String host,
             int port,
             String username,
@@ -50,7 +49,7 @@ public class TunnelToggleCommandMetadata extends CommandMetadata {
             int connectTimeoutMs,
             int keepAliveIntervalSec
     ) {
-        super(name, description, type);
+        super(name, description, CommandType.TUNNEL_TOGGLE);
         this.host = host;
         this.port = port;
         this.username = username;

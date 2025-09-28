@@ -98,7 +98,6 @@ public class TunnelToggleCommandTest {
         TunnelToggleCommandMetadata meta = new TunnelToggleCommandMetadata(
                 "TestTunnel",
                 "SSH tunnel test - happy flow",
-                CommandType.TERMINAL_TOGGLE,
                 "127.0.0.1",
                 sshPort,
                 "testuser",
@@ -164,7 +163,6 @@ public class TunnelToggleCommandTest {
         TunnelToggleCommandMetadata meta = new TunnelToggleCommandMetadata(
                 "PrivateKeyTunnel",
                 "SSH tunnel test - private key auth",
-                CommandType.TERMINAL_TOGGLE,
                 "127.0.0.1",
                 sshPort,
                 "testuser",
@@ -221,7 +219,6 @@ public class TunnelToggleCommandTest {
         TunnelToggleCommandMetadata meta = new TunnelToggleCommandMetadata(
                 "BadCredentialsTunnel",
                 "SSH tunnel test - invalid credentials",
-                CommandType.TERMINAL_TOGGLE,
                 "127.0.0.1",
                 sshPort,
                 "testuser",
