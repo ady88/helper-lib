@@ -1,4 +1,3 @@
-
 package com.helperlib.command.clipboard;
 
 import java.awt.*;
@@ -11,12 +10,25 @@ import java.awt.datatransfer.StringSelection;
  */
 public class ClipboardService {
 
-    // Cache the system clipboard to avoid repeated lookups
-    private static final Clipboard SYSTEM_CLIPBOARD = Toolkit.getDefaultToolkit().getSystemClipboard();
-
     // Private constructor to prevent instantiation - this is a utility class
     private ClipboardService() {
         throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    }
+
+    /**
+     * Gets the system clipboard, handling headless environments gracefully.
+     *
+     * @return Clipboard instance or null if not available
+     */
+    private static Clipboard getSystemClipboard() {
+        try {
+            if (GraphicsEnvironment.isHeadless()) {
+                return null;
+            }
+            return Toolkit.getDefaultToolkit().getSystemClipboard();
+        } catch (HeadlessException e) {
+            return null;
+        }
     }
 
     /**
@@ -41,9 +53,16 @@ public class ClipboardService {
                         (System.nanoTime() - startTime) / 1_000_000);
             }
 
+            // Get clipboard lazily
+            Clipboard clipboard = getSystemClipboard();
+            if (clipboard == null) {
+                return new ClipboardResult(false, "Cannot access clipboard in headless environment",
+                        (System.nanoTime() - startTime) / 1_000_000);
+            }
+
             // Perform clipboard operation
             StringSelection stringSelection = new StringSelection(content);
-            SYSTEM_CLIPBOARD.setContents(stringSelection, null);
+            clipboard.setContents(stringSelection, null);
 
             long executionTime = (System.nanoTime() - startTime) / 1_000_000;
             return new ClipboardResult(true, "Text copied to clipboard successfully", executionTime);
