@@ -4,11 +4,10 @@ package com.helperlib.command.rest;
 import com.helperlib.api.command.Command;
 import com.helperlib.api.command.CommandResult;
 import com.helperlib.api.command.logging.StreamHandler;
+import com.helperlib.command.clipboard.ClipboardService;
 import com.helperlib.core.command.CommandExecutorService;
 import com.helperlib.core.command.logging.NoOpStreamHandler;
 
-import java.awt.*;
-import java.awt.datatransfer.StringSelection;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -98,7 +97,7 @@ public class RestCommand extends Command {
                     );
                 }
 
-                // Handle clipboard functionality
+                // Handle clipboard functionality using the shared service
                 String clipboardContent = responseBody; // Default to full response
 
                 if (restMetadata.getToClipboard() != null && !restMetadata.getToClipboard().isEmpty()) {
@@ -112,13 +111,17 @@ public class RestCommand extends Command {
                     }
                 }
 
-                // Copy to clipboard
-                copyToClipboard(clipboardContent);
+                // Copy to clipboard using the shared service
+                boolean clipboardSuccess = ClipboardService.copyToClipboardSilent(clipboardContent);
+
+                if (clipboardSuccess) {
+                    System.out.println("REST command executed successfully. Response copied to clipboard.");
+                } else {
+                    System.out.println("REST command executed successfully. Failed to copy response to clipboard.");
+                }
 
                 long executionTime = System.currentTimeMillis() - startTime;
                 boolean success = response.statusCode() >= 200 && response.statusCode() < 300;
-
-                System.out.println("REST command executed successfully. Response copied to clipboard.");
 
                 return new CommandResult(success, response.statusCode(), executionTime);
 
@@ -156,17 +159,6 @@ public class RestCommand extends Command {
             } else {
                 return current.toString();
             }
-        }
-    }
-
-    private void copyToClipboard(String content) {
-        try {
-            if (!GraphicsEnvironment.isHeadless()) {
-                StringSelection stringSelection = new StringSelection(content);
-                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
-            }
-        } catch (Exception e) {
-            System.err.println("Failed to copy to clipboard: " + e.getMessage());
         }
     }
 }

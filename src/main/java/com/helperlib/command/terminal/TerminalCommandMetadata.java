@@ -16,7 +16,7 @@ public class TerminalCommandMetadata extends CommandMetadata {
         this.commandText = commandText;
         this.arguments = arguments;
         this.path = path;
-        this.environmentPathVariable = environmentPathVariable; // Initialize new variable
+        this.environmentPathVariable = environmentPathVariable;
     }
 
     // New constructor that accepts CommandType
@@ -27,7 +27,6 @@ public class TerminalCommandMetadata extends CommandMetadata {
         this.path = path;
         this.environmentPathVariable = environmentPathVariable;
     }
-
 
     public String getCommandText() {
         return commandText;
@@ -61,4 +60,3 @@ public class TerminalCommandMetadata extends CommandMetadata {
         this.environmentPathVariable = environmentPathVariable;
     }
 }
-

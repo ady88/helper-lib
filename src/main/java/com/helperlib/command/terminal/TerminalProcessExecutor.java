@@ -2,8 +2,9 @@ package com.helperlib.command.terminal;
 
 import com.helperlib.api.command.CommandResult;
 import com.helperlib.api.command.logging.StreamHandler;
+import com.helperlib.command.clipboard.ClipboardService;
 
-import java.io.File;
+import java.io.*;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -13,16 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * Encapsulates the common logic for creating ProcessBuilder, configuring environment, and managing streams.
  */
 public class TerminalProcessExecutor {
-    /**
-     * Executes a terminal command using the provided metadata and stream handler.
-     *
-     * @param metadata The terminal command metadata containing command configuration
-     * @param streamHandler The stream handler for managing process output/error streams
-     * @param processRef Optional atomic reference to store the created process (for cancellation)
-     * @return CommandResult containing execution status, exit code, and execution time
-     * @throws InterruptedException if the process execution is interrupted
-     * @throws Exception if process creation or execution fails
-     */
+
     public static CommandResult executeProcess(TerminalCommandMetadata metadata,
                                                StreamHandler streamHandler,
                                                AtomicReference<Process> processRef) throws Exception {
@@ -51,9 +43,13 @@ public class TerminalProcessExecutor {
             processRef.set(process);
         }
 
-        // Start stream handlers
-        CompletableFuture<Void> outputHandler = streamHandler.handleStream(
-                process.getInputStream(), "stdout", metadata.getName());
+        // Capture single-line output for clipboard
+        final AtomicReference<String> singleLineOutput = new AtomicReference<>();
+
+        CompletableFuture<Void> outputHandler = CompletableFuture.runAsync(() ->
+                processOutputStream(process.getInputStream(), streamHandler, metadata, singleLineOutput));
+
+        // Handle stderr stream
         CompletableFuture<Void> errorHandler = streamHandler.handleStream(
                 process.getErrorStream(), "stderr", metadata.getName());
 
@@ -63,13 +59,66 @@ public class TerminalProcessExecutor {
         // Wait for stream readers to finish
         CompletableFuture.allOf(outputHandler, errorHandler).join();
 
+        // Copy to clipboard if output was exactly one line
+        if (exitCode == 0 && singleLineOutput.get() != null) {
+            String lineToClipboard = singleLineOutput.get().trim();
+            if (!lineToClipboard.isEmpty()) {
+                ClipboardService.copyToClipboardSilent(lineToClipboard);
+            }
+        }
+
         boolean success = exitCode == 0;
-        return new CommandResult(success, exitCode, 0); // Execution time will be calculated by caller
+        return new CommandResult(success, exitCode, 0);
     }
 
+
     /**
-     * Overloaded method for simple execution without process reference storage.
+     * Processes the output stream, capturing output for clipboard if it's exactly one line
+     * and forwarding all output to the stream handler.
      */
+    private static void processOutputStream(InputStream inputStream,
+                                            StreamHandler streamHandler,
+                                            TerminalCommandMetadata metadata,
+                                            AtomicReference<String> firstLine) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+            String line = reader.readLine(); // Read first line
+
+            // Check if there's a second line to determine if output is single-line
+            String secondLine = reader.readLine();
+
+            // If there's only one line, capture it for clipboard
+            if (line != null && secondLine == null) {
+                firstLine.set(line);
+            }
+
+            // Reconstruct all output for the stream handler
+            StringBuilder allOutput = new StringBuilder();
+            if (line != null) {
+                allOutput.append(line).append(System.lineSeparator());
+            }
+            if (secondLine != null) {
+                allOutput.append(secondLine).append(System.lineSeparator());
+
+                // Read any remaining lines
+                String nextLine;
+                while ((nextLine = reader.readLine()) != null) {
+                    allOutput.append(nextLine).append(System.lineSeparator());
+                }
+            }
+
+            // Send to stream handler
+            if (allOutput.length() > 0) {
+                try (ByteArrayInputStream recreatedStream =
+                             new ByteArrayInputStream(allOutput.toString().getBytes())) {
+                    streamHandler.handleStream(recreatedStream, "stdout", metadata.getName()).join();
+                }
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException("Error handling stdout: " + e.getMessage(), e);
+        }
+    }
+
     public static CommandResult executeProcess(TerminalCommandMetadata metadata,
                                                StreamHandler streamHandler) throws Exception {
         return executeProcess(metadata, streamHandler, null);
@@ -82,14 +131,9 @@ public class TerminalProcessExecutor {
 
         String os = System.getProperty("os.name").toLowerCase();
         if (os.contains("win")) {
-            // Use cmd to support pipes, redirection, etc. on Windows
             return List.of("cmd.exe", "/c", rawCommand);
         } else {
-            // Use a POSIX shell so pipes, redirection, globs, and quoting work on macOS/Linux
             return List.of("/bin/sh", "-c", rawCommand);
         }
     }
-
-
-
 }

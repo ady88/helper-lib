@@ -29,7 +29,8 @@ public class TerminalMetadataParser {
         String path = jsonObject.getString("path", "");
         String environmentPathVariable = jsonObject.getString("environmentPathVariable", "");
 
-        return new TerminalCommandMetadata(name, description, commandType, commandText, arguments, path, environmentPathVariable);
+        return new TerminalCommandMetadata(name, description, commandType, commandText,
+                arguments, path, environmentPathVariable);
     }
 
     /**
@@ -76,4 +77,3 @@ public class TerminalMetadataParser {
         return argumentsBuilder.build();
     }
 }
-

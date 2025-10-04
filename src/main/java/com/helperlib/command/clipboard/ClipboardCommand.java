@@ -6,8 +6,6 @@ import com.helperlib.api.command.logging.StreamHandler;
 import com.helperlib.core.command.CommandExecutorService;
 import com.helperlib.core.command.logging.NoOpStreamHandler;
 
-import java.awt.*;
-import java.awt.datatransfer.StringSelection;
 import java.util.concurrent.CompletableFuture;
 
 public class ClipboardCommand extends Command {
@@ -20,30 +18,41 @@ public class ClipboardCommand extends Command {
 
     public ClipboardCommand(ClipboardCommandMetadata metadata, StreamHandler streamHandler) {
         super(metadata);
-        this.streamHandler = streamHandler; // Fix: Store the handler
+        this.streamHandler = streamHandler;
     }
 
     @Override
     public CompletableFuture<CommandResult> executeAsync() {
-        return CompletableFuture.supplyAsync(() -> {
-            long startTime = System.currentTimeMillis();
-            ClipboardCommandMetadata clipboardMetadata = (ClipboardCommandMetadata) metadata;
+        return CompletableFuture.supplyAsync(this::executeSync, CommandExecutorService.getVirtualThreadExecutor());
+    }
 
-            try {
-                StringSelection stringSelection = new StringSelection(clipboardMetadata.getTextToCopy());
-                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
+    public CommandResult executeSynchronous() {
+        return executeSync();
+    }
 
-                // Keep simple console output since StreamHandler is for stream processing
-                System.out.println("Text copied to clipboard successfully.");
+    private CommandResult executeSync() {
+        ClipboardCommandMetadata clipboardMetadata = (ClipboardCommandMetadata) metadata;
+        String textToCopy = clipboardMetadata.getTextToCopy();
 
-                long executionTime = System.currentTimeMillis() - startTime;
-                return new CommandResult(true, 0, executionTime);
+        // Use the shared clipboard service
+        ClipboardResult clipboardResult = ClipboardService.copyToClipboard(textToCopy);
 
-            } catch (Exception e) {
-                System.err.println("Error copying text to clipboard: " + e.getMessage());
-                long executionTime = System.currentTimeMillis() - startTime;
-                return new CommandResult(false, -1, executionTime);
-            }
-        }, CommandExecutorService.getVirtualThreadExecutor());
+        // Handle empty input specifically
+        if (textToCopy != null && textToCopy.isEmpty()) {
+            return new CommandResult(false, -1, clipboardResult.executionTimeMs());
+        }
+
+        // Log success if needed
+        if (clipboardResult.success() && streamHandler != null && !(streamHandler instanceof NoOpStreamHandler)) {
+            System.out.println(clipboardResult.message());
+        }
+
+        // Convert clipboard result to command result
+        if (clipboardResult.success()) {
+            return new CommandResult(true, 0, clipboardResult.executionTimeMs());
+        } else {
+            System.err.println(clipboardResult.message());
+            return new CommandResult(false, -1, clipboardResult.executionTimeMs());
+        }
     }
 }
