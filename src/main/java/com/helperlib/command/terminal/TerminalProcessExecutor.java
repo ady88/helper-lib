@@ -107,7 +107,7 @@ public class TerminalProcessExecutor {
             }
 
             // Send to stream handler
-            if (allOutput.length() > 0) {
+            if (!allOutput.isEmpty()) {
                 try (ByteArrayInputStream recreatedStream =
                              new ByteArrayInputStream(allOutput.toString().getBytes())) {
                     streamHandler.handleStream(recreatedStream, "stdout", metadata.getName()).join();
