@@ -3,6 +3,7 @@ package com.helperlib.command.terminal;
 import com.helperlib.api.command.CommandResult;
 import com.helperlib.api.command.logging.StreamHandler;
 import com.helperlib.command.clipboard.ClipboardService;
+import com.helperlib.core.command.CommandExecutorService;
 
 import java.io.*;
 import java.util.List;
@@ -45,13 +46,15 @@ public class TerminalProcessExecutor {
 
         // Capture single-line output for clipboard
         final AtomicReference<String> singleLineOutput = new AtomicReference<>();
+        var vexec = CommandExecutorService.getVirtualThreadExecutor();
 
         CompletableFuture<Void> outputHandler = CompletableFuture.runAsync(() ->
-                processOutputStream(process.getInputStream(), streamHandler, metadata, singleLineOutput));
+                processOutputStream(process.getInputStream(), streamHandler, metadata, singleLineOutput), vexec);
 
-        // Handle stderr stream
-        CompletableFuture<Void> errorHandler = streamHandler.handleStream(
-                process.getErrorStream(), "stderr", metadata.getName());
+        // Handle stderr stream aligned to virtual executor
+        CompletableFuture<Void> errorHandler = CompletableFuture
+                .supplyAsync(() -> streamHandler.handleStream(process.getErrorStream(), "stderr", metadata.getName()), vexec)
+                .thenCompose(f -> f);
 
         // Wait for process completion
         int exitCode = process.waitFor();
