@@ -79,41 +79,47 @@ public class TerminalProcessExecutor {
     private static void processOutputStream(InputStream inputStream,
                                             StreamHandler streamHandler,
                                             TerminalCommandMetadata metadata,
-                                            AtomicReference<String> firstLine) {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-            String line = reader.readLine(); // Read first line
+                                            AtomicReference<String> firstLineRef) {
+        final String newline = System.lineSeparator();
+        try (
+                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+                PipedOutputStream pos = new PipedOutputStream();
+                PipedInputStream pis = new PipedInputStream(pos, 8192)
+        ) {
+            // Start handler immediately so consumer can read while we write
+            CompletableFuture<Void> handlerFuture = streamHandler.handleStream(pis, "stdout", metadata.getName());
 
-            // Check if there's a second line to determine if output is single-line
-            String secondLine = reader.readLine();
-
-            // If there's only one line, capture it for clipboard
-            if (line != null && secondLine == null) {
-                firstLine.set(line);
+            String line1 = reader.readLine();
+            String line2 = null;
+            if (line1 != null) {
+                line2 = reader.readLine();
             }
 
-            // Reconstruct all output for the stream handler
-            StringBuilder allOutput = new StringBuilder();
-            if (line != null) {
-                allOutput.append(line).append(System.lineSeparator());
+            if (line1 != null && line2 == null) {
+                // Single line total
+                firstLineRef.set(line1);
             }
-            if (secondLine != null) {
-                allOutput.append(secondLine).append(System.lineSeparator());
 
-                // Read any remaining lines
-                String nextLine;
-                while ((nextLine = reader.readLine()) != null) {
-                    allOutput.append(nextLine).append(System.lineSeparator());
+            // Write what we have, then continue streaming
+            if (line1 != null) {
+                pos.write(line1.getBytes());
+                pos.write(newline.getBytes());
+            }
+            if (line2 != null) {
+                pos.write(line2.getBytes());
+                pos.write(newline.getBytes());
+
+                String next;
+                while ((next = reader.readLine()) != null) {
+                    pos.write(next.getBytes());
+                    pos.write(newline.getBytes());
                 }
             }
+            pos.flush();
 
-            // Send to stream handler
-            if (!allOutput.isEmpty()) {
-                try (ByteArrayInputStream recreatedStream =
-                             new ByteArrayInputStream(allOutput.toString().getBytes())) {
-                    streamHandler.handleStream(recreatedStream, "stdout", metadata.getName()).join();
-                }
-            }
-
+            // Close writer to signal EOF to handler and wait for it
+            pos.close();
+            handlerFuture.join();
         } catch (IOException e) {
             throw new RuntimeException("Error handling stdout: " + e.getMessage(), e);
         }
