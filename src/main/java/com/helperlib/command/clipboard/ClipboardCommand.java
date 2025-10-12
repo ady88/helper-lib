@@ -34,13 +34,13 @@ public class ClipboardCommand extends Command {
         ClipboardCommandMetadata clipboardMetadata = (ClipboardCommandMetadata) metadata;
         String textToCopy = clipboardMetadata.getTextToCopy();
 
-        // Use the shared clipboard service
-        ClipboardResult clipboardResult = ClipboardService.copyToClipboard(textToCopy);
-
         // Handle empty input specifically
         if (textToCopy != null && textToCopy.isEmpty()) {
-            return new CommandResult(false, -1, clipboardResult.executionTimeMs());
+            return new CommandResult(false, -1, 0);
         }
+
+        // Use the shared clipboard service
+        ClipboardResult clipboardResult = ClipboardService.copyToClipboard(textToCopy);
 
         // Log success if needed
         if (clipboardResult.success() && streamHandler != null && !(streamHandler instanceof NoOpStreamHandler)) {

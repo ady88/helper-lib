@@ -16,17 +16,25 @@ public class ClipboardService {
     }
 
     /**
-     * Gets the system clipboard, handling headless environments gracefully.
+     * Gets the system clipboard, handling headless and security-restricted environments gracefully.
+     * Caches the Clipboard instance for subsequent calls within the same JVM to avoid repeated toolkit lookups.
      *
      * @return Clipboard instance or null if not available
      */
+    private static volatile Clipboard CACHED_CLIPBOARD;
     private static Clipboard getSystemClipboard() {
+        Clipboard cached = CACHED_CLIPBOARD;
+        if (cached != null) {
+            return cached;
+        }
         try {
             if (GraphicsEnvironment.isHeadless()) {
                 return null;
             }
-            return Toolkit.getDefaultToolkit().getSystemClipboard();
-        } catch (HeadlessException e) {
+            Clipboard cb = Toolkit.getDefaultToolkit().getSystemClipboard();
+            CACHED_CLIPBOARD = cb;
+            return cb;
+        } catch (HeadlessException | SecurityException e) {
             return null;
         }
     }
