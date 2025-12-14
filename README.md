@@ -5,18 +5,18 @@ A small Java library of executable commands (terminal, clipboard, REST, and tunn
   <dependency>
     <groupId>com.helperlib</groupId>
     <artifactId>helper-lib-core</artifactId>
-    <version>1.2.14</version>
+    <version>1.2.XX</version>
   </dependency>
 - Interfaces under `com.helperlib.api` are provided transitively by the core dependency.
 
 Stack
-- Language: Java 24 (JPMS module: `module helper.lib`)
+- Language: Java 25 (JPMS module: `module helper.lib`)
 - Build: Maven
 - Tests: JUnit 5, WireMock, Apache MINA SSHD
 - Logging: SLF4J
 
 Requirements
-- JDK 24
+- JDK 25
 - Maven 3.9+
 
 Setup and build
