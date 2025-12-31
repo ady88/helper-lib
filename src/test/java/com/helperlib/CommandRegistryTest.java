@@ -2,19 +2,23 @@ package com.helperlib;
 
 import com.helperlib.api.command.CommandMetadata;
 import com.helperlib.api.command.CommandType;
-import com.helperlib.command.clipboard.ClipboardCommandMetadata;
-import com.helperlib.command.terminal.TerminalCommandMetadata;
-
 import com.helperlib.command.clipboard.ClipboardCommandFactory;
+import com.helperlib.command.clipboard.ClipboardCommandMetadata;
 import com.helperlib.command.terminal.TerminalCommandFactory;
+import com.helperlib.command.terminal.TerminalCommandMetadata;
 import com.helperlib.core.ConfigService;
 import com.helperlib.core.command.CommandMetadataWrapper;
 import com.helperlib.core.command.CommandRegistry;
 import com.helperlib.core.command.exceptions.GroupNotEmptyException;
 import com.helperlib.core.command.logging.NoOpStreamHandler;
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -331,4 +335,126 @@ class CommandRegistryTest {
                 "Empty category should be successfully removed");
     }
 
+    @Test
+    void testGroupParameter_savePersists() {
+        System.out.println("Testing saving a group parameter persists...");
+
+        String category = "TestCategory";
+        String group = "TerminalGroup";
+        String paramName = "company_name_1";
+        String value = "ACME";
+
+        CommandRegistry.saveGroupParameterToConfig(category, group, paramName, value);
+
+        // Force reload from disk to validate persistence
+        CommandRegistry.getConfigService().reloadCache();
+
+        assertEquals(value,
+                CommandRegistry.getGroupParameterFromConfig(category, group, paramName).orElse(null),
+                "Saved group parameter should persist after reload");
+    }
+
+    @Test
+    void testGroupParameter_clearDoesNotDeleteCommands() {
+        System.out.println("Testing clearing group parameters does not delete commands...");
+
+        String category = "TestCategory";
+        String group = "ClipboardGroup";
+
+        // sanity: command exists
+        assertTrue(CommandRegistry.commandExistsInConfig(category, group, "CopyTest"),
+                "Precondition: command should exist before clearing params");
+
+        // add param and confirm present
+        CommandRegistry.saveGroupParameterToConfig(category, group, "query_param_1", "hello");
+        assertFalse(CommandRegistry.getGroupParametersFromConfig(category, group).isEmpty(),
+                "Precondition: params should not be empty after save");
+
+        // clear params
+        CommandRegistry.clearGroupParametersFromConfig(category, group);
+
+        // reload for persistence validation
+        CommandRegistry.getConfigService().reloadCache();
+
+        // params cleared
+        assertTrue(CommandRegistry.getGroupParametersFromConfig(category, group).isEmpty(),
+                "Params should be empty after clear");
+
+        // commands still present
+        assertTrue(CommandRegistry.commandExistsInConfig(category, group, "CopyTest"),
+                "Commands must remain after clearing group params");
+    }
+
+    @Test
+    void testLegacyConfig_loadsEmptyParams_andSavesNewFormat() throws Exception {
+        System.out.println("Testing legacy config loads with empty params and saves into new format...");
+
+        ConfigService configService = CommandRegistry.getConfigService();
+        String configFilePath = configService.getConfigFilePath();
+
+        // Build a legacy-format JSON file (categories at root)
+        String category = "LegacyCategory";
+        String group = "LegacyGroup";
+
+        // Use a real command JSON produced by the registry, so parsing is consistent
+        CommandMetadata legacyCmd = new ClipboardCommandMetadata(
+                "LegacyCopy",
+                "Legacy clipboard command",
+                "Legacy text"
+        );
+        JsonObject cmdJson = CommandRegistry.serializeMetadata(legacyCmd);
+
+        JsonObject legacyRoot = Json.createObjectBuilder()
+                .add(category, Json.createObjectBuilder()
+                        .add(group, Json.createArrayBuilder().add(cmdJson)))
+                .build();
+
+        try (FileWriter writer = new FileWriter(configFilePath)) {
+            var writerFactory = Json.createWriterFactory(Map.of(jakarta.json.stream.JsonGenerator.PRETTY_PRINTING, true));
+            var jsonWriter = writerFactory.createWriter(writer);
+            jsonWriter.writeObject(legacyRoot);
+        }
+
+        // Reload from legacy file
+        configService.reloadCache();
+
+        // Legacy should load commands...
+        assertTrue(CommandRegistry.commandExistsInConfig(category, group, "LegacyCopy"),
+                "Legacy command should be loaded from legacy JSON");
+
+        // ...and params should be empty (legacy had none)
+        assertTrue(CommandRegistry.getGroupParametersFromConfig(category, group).isEmpty(),
+                "Legacy config should load with empty group parameters");
+
+        // Trigger save (migration) by saving a parameter
+        CommandRegistry.saveGroupParameterToConfig(category, group, "param1", "value1");
+
+        // Verify file is now in new format (has top-level 'commands' and 'groupParameters')
+        JsonObject rootAfterSave = readConfigRootJson(configFilePath);
+        assertTrue(rootAfterSave.containsKey("commands"), "Config root should contain 'commands' after migration save");
+        assertTrue(rootAfterSave.containsKey("groupParameters"), "Config root should contain 'groupParameters' after migration save");
+
+        // NEW: assert legacy category/group moved under "commands"
+        JsonObject commandsRoot = rootAfterSave.getJsonObject("commands");
+        assertNotNull(commandsRoot, "'commands' should be a JSON object");
+        assertTrue(commandsRoot.containsKey(category), "'commands' should contain legacy category");
+        JsonObject categoryObject = commandsRoot.getJsonObject(category);
+        assertNotNull(categoryObject, "Legacy category under 'commands' should be a JSON object");
+        assertTrue(categoryObject.containsKey(group), "Legacy category under 'commands' should contain legacy group");
+
+        // Also verify the legacy command is still present after migration
+        configService.reloadCache();
+        assertTrue(CommandRegistry.commandExistsInConfig(category, group, "LegacyCopy"),
+                "Command should still exist after migrating legacy config to new format");
+        assertEquals("value1",
+                CommandRegistry.getGroupParameterFromConfig(category, group, "param1").orElse(null),
+                "Saved parameter should exist after migration");
+    }
+
+    private static JsonObject readConfigRootJson(String configFilePath) throws Exception {
+        try (FileInputStream fis = new FileInputStream(configFilePath);
+             JsonReader reader = Json.createReader(fis)) {
+            return reader.readObject();
+        }
+    }
 }

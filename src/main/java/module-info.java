@@ -19,6 +19,7 @@ module helper.lib {
     exports com.helperlib.command.terminaltoggle;
     exports com.helperlib.command.rest;
     exports com.helperlib.command.tunneltoggle;
+    exports com.helperlib.command.template;
 
 
     // If you have any service providers, declare them here
