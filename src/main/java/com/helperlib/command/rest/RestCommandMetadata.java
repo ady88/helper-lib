@@ -1,4 +1,3 @@
-
 package com.helperlib.command.rest;
 
 import com.helperlib.api.command.CommandMetadata;
@@ -12,15 +11,23 @@ public class RestCommandMetadata extends CommandMetadata {
     private String requestBody;
     private Map<String, String> headers;
     private String toClipboard; // JSON path for partial response extraction
+    private boolean showResultImmediately; // UI hint: surface result as soon as it is available
 
     public RestCommandMetadata(String name, String description, String url, String method,
                                String requestBody, Map<String, String> headers, String toClipboard) {
+        this(name, description, url, method, requestBody, headers, toClipboard, false);
+    }
+
+    public RestCommandMetadata(String name, String description, String url, String method,
+                               String requestBody, Map<String, String> headers, String toClipboard,
+                               boolean showResultImmediately) {
         super(name, description, CommandType.REST);
         this.url = url;
         this.method = method;
         this.requestBody = requestBody;
         this.headers = headers;
         this.toClipboard = toClipboard;
+        this.showResultImmediately = showResultImmediately;
     }
 
     public String getUrl() {
@@ -61,5 +68,13 @@ public class RestCommandMetadata extends CommandMetadata {
 
     public void setToClipboard(String toClipboard) {
         this.toClipboard = toClipboard;
+    }
+
+    public boolean isShowResultImmediately() {
+        return showResultImmediately;
+    }
+
+    public void setShowResultImmediately(boolean showResultImmediately) {
+        this.showResultImmediately = showResultImmediately;
     }
 }

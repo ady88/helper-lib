@@ -51,7 +51,8 @@ public final class RestTemplatingPolicy implements TemplatingPolicy {
                 m.getMethod(),
                 renderedBody,
                 m.getHeaders(),
-                m.getToClipboard()
+                m.getToClipboard(),
+                m.isShowResultImmediately()
         );
     }
 }

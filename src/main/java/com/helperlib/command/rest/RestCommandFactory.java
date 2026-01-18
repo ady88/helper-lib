@@ -25,6 +25,7 @@ public class RestCommandFactory implements CommandFactory {
         String method = jsonObject.getString("method", "GET");
         String requestBody = jsonObject.getString("requestBody", "");
         String toClipboard = jsonObject.getString("toClipboard", "");
+        boolean showResultImmediately = jsonObject.getBoolean("showResultImmediately", false);
 
         // Parse headers
         Map<String, String> headers = new HashMap<>();
@@ -34,7 +35,9 @@ public class RestCommandFactory implements CommandFactory {
                     headers.put(key, value.toString().replaceAll("\"", "")));
         }
 
-        return new RestCommandMetadata(name, description, url, method, requestBody, headers, toClipboard);
+        return new RestCommandMetadata(
+                name, description, url, method, requestBody, headers, toClipboard, showResultImmediately
+        );
     }
 
     @Override
@@ -48,7 +51,8 @@ public class RestCommandFactory implements CommandFactory {
                 .add("url", restMetadata.getUrl())
                 .add("method", restMetadata.getMethod())
                 .add("requestBody", restMetadata.getRequestBody() != null ? restMetadata.getRequestBody() : "")
-                .add("toClipboard", restMetadata.getToClipboard() != null ? restMetadata.getToClipboard() : "");
+                .add("toClipboard", restMetadata.getToClipboard() != null ? restMetadata.getToClipboard() : "")
+                .add("showResultImmediately", restMetadata.isShowResultImmediately());
 
         // Add headers
         if (restMetadata.getHeaders() != null && !restMetadata.getHeaders().isEmpty()) {

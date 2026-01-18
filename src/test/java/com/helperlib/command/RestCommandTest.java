@@ -9,6 +9,7 @@ import com.helperlib.command.rest.RestCommandMetadata;
 import com.helperlib.core.command.CommandRegistry;
 import com.helperlib.core.command.logging.FileStreamHandler;
 import com.helperlib.core.command.logging.NoOpStreamHandler;
+import jakarta.json.Json;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -358,7 +359,8 @@ public class RestCommandTest {
                 "POST",
                 "{\"test\":\"data\"}",
                 Map.of("Authorization", "Bearer token", "Content-Type", "application/json"),
-                "result.id"
+                "result.id",
+                true
         );
 
         // Serialize metadata
@@ -375,6 +377,7 @@ public class RestCommandTest {
         assertEquals(originalMetadata.getRequestBody(), deserializedMetadata.getRequestBody());
         assertEquals(originalMetadata.getToClipboard(), deserializedMetadata.getToClipboard());
         assertEquals(originalMetadata.getHeaders(), deserializedMetadata.getHeaders());
+        assertEquals(originalMetadata.isShowResultImmediately(), deserializedMetadata.isShowResultImmediately());
 
         System.out.println("✓ Successfully verified REST command metadata serialization");
     }
@@ -484,6 +487,25 @@ public class RestCommandTest {
         System.out.println("✓ Successfully verified REST command error handling");
     }
 
+    @Test
+    void testRestCommandMetadata_missingShowResultImmediately_defaultsToFalse() {
+        RestCommandFactory factory = new RestCommandFactory();
+
+        var jsonObject = Json.createObjectBuilder()
+                .add("name", "MissingFlagTest")
+                .add("description", "showResultImmediately missing should default to false")
+                .add("type", CommandType.REST.toString())
+                .add("url", "https://api.example.com/test")
+                .add("method", "GET")
+                .add("requestBody", "")
+                .add("toClipboard", "")
+                .build();
+
+        var deserializedMetadata = (RestCommandMetadata) factory.parseMetadata(jsonObject);
+
+        assertFalse(deserializedMetadata.isShowResultImmediately(),
+                "When showResultImmediately is missing in JSON it must default to false");
+    }
 
     @AfterEach
     void tearDown() {
