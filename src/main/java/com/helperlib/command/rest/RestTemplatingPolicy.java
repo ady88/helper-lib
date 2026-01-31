@@ -5,13 +5,14 @@ import com.helperlib.api.command.CommandType;
 import com.helperlib.api.command.TemplateEngine;
 import com.helperlib.api.command.TemplatingPolicy;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 /**
- * REST policy: only url and requestBody are templatable.
+ * REST policy: url, requestBody, and header values are templatable.
  */
 public final class RestTemplatingPolicy implements TemplatingPolicy {
 
@@ -30,6 +31,13 @@ public final class RestTemplatingPolicy implements TemplatingPolicy {
         Set<String> names = new HashSet<>();
         names.addAll(engine.extractPlaceholderNames(m.getUrl()));
         names.addAll(engine.extractPlaceholderNames(m.getRequestBody()));
+
+        if (m.getHeaders() != null && !m.getHeaders().isEmpty()) {
+            for (String headerValue : m.getHeaders().values()) {
+                names.addAll(engine.extractPlaceholderNames(headerValue));
+            }
+        }
+
         return Set.copyOf(names);
     }
 
@@ -43,14 +51,23 @@ public final class RestTemplatingPolicy implements TemplatingPolicy {
         String renderedUrl = engine.render(m.getUrl(), parameters);
         String renderedBody = engine.render(m.getRequestBody(), parameters);
 
-        // Preserve non-templatable fields
+        Map<String, String> renderedHeaders = null;
+        if (m.getHeaders() != null && !m.getHeaders().isEmpty()) {
+            renderedHeaders = new HashMap<>(m.getHeaders().size());
+            for (Map.Entry<String, String> e : m.getHeaders().entrySet()) {
+                renderedHeaders.put(e.getKey(), engine.render(e.getValue(), parameters));
+            }
+        } else if (m.getHeaders() != null) {
+            renderedHeaders = Map.of();
+        }
+
         return new RestCommandMetadata(
                 m.getName(),
                 m.getDescription(),
                 renderedUrl,
                 m.getMethod(),
                 renderedBody,
-                m.getHeaders(),
+                renderedHeaders,
                 m.getToClipboard(),
                 m.isShowResultImmediately()
         );

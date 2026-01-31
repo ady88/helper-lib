@@ -6,9 +6,11 @@ import com.helperlib.api.command.CommandType;
 import com.helperlib.command.rest.RestCommand;
 import com.helperlib.command.rest.RestCommandFactory;
 import com.helperlib.command.rest.RestCommandMetadata;
+import com.helperlib.command.template.DefaultTemplatingPolicyResolver;
 import com.helperlib.core.command.CommandRegistry;
 import com.helperlib.core.command.logging.FileStreamHandler;
 import com.helperlib.core.command.logging.NoOpStreamHandler;
+import com.helperlib.core.template.RegexTemplateEngine;
 import jakarta.json.Json;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +63,12 @@ public class RestCommandTest {
 
         // Register the REST command factory
         CommandRegistry.registerFactory(CommandType.REST, new RestCommandFactory());
+
+        // Enable templating for CommandRegistry execution
+        CommandRegistry.configureTemplating(
+                new RegexTemplateEngine(),
+                new DefaultTemplatingPolicyResolver()
+        );
 
         // Initialize config service
         CommandRegistry.getConfigService().initializeConfigFile();
@@ -505,6 +513,45 @@ public class RestCommandTest {
 
         assertFalse(deserializedMetadata.isShowResultImmediately(),
                 "When showResultImmediately is missing in JSON it must default to false");
+    }
+
+    @Test
+    void testRestCommand_headerValueTemplating_rendersFromGroupParameters() throws InterruptedException {
+        System.out.println("Testing REST command header value templating...");
+
+        // This matches the existing WireMock POST stub expectation for Authorization header
+        CommandRegistry.saveGroupParameterToConfig(TEST_CATEGORY, TEST_GROUP, "token", "test-token");
+
+        String postCommandName = "CreateUserWithTemplatedHeader";
+        RestCommandMetadata postCommandMetadata = new RestCommandMetadata(
+                postCommandName,
+                "Test POST request with templated header value",
+                MOCK_SERVER_URL + "/api/users",
+                "POST",
+                "{\"name\":\"Jane Doe\",\"email\":\"jane@example.com\"}",
+                Map.of(
+                        "Content-Type", "application/json",
+                        "Authorization", "Bearer ${token}"
+                ),
+                null
+        );
+
+        CommandRegistry.saveCommandToConfig(TEST_CATEGORY, TEST_GROUP, postCommandMetadata);
+
+        CompletableFuture<CommandResult> resultFuture = CommandRegistry.executeCommandFromConfig(
+                TEST_CATEGORY,
+                TEST_GROUP,
+                postCommandName,
+                new NoOpStreamHandler()
+        );
+
+        CommandResult result = resultFuture.join();
+
+        assertNotNull(result, "Command result should not be null");
+        assertTrue(result.success(), "Command execution should be successful");
+        assertEquals(201, result.exitCode(), "HTTP status code should be 201 (Created)");
+
+        System.out.println("✓ Successfully verified REST header value templating");
     }
 
     @AfterEach
