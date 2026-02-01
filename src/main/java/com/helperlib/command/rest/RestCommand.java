@@ -1,4 +1,3 @@
-
 package com.helperlib.command.rest;
 
 import com.helperlib.api.command.Command;
@@ -6,18 +5,23 @@ import com.helperlib.api.command.CommandResult;
 import com.helperlib.api.command.logging.StreamHandler;
 import com.helperlib.command.clipboard.ClipboardService;
 import com.helperlib.core.command.CommandExecutorService;
+import com.helperlib.core.command.CommandRegistry;
 import com.helperlib.core.command.logging.NoOpStreamHandler;
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
+import jakarta.json.JsonValue;
 
+import java.io.StringReader;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import jakarta.json.Json;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonReader;
-import java.io.StringReader;
 
 public class RestCommand extends Command {
 
@@ -39,22 +43,18 @@ public class RestCommand extends Command {
             RestCommandMetadata restMetadata = (RestCommandMetadata) metadata;
 
             try {
-                // Create HTTP client
                 HttpClient client = HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(30))
                         .build();
 
-                // Build request
                 HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                         .uri(URI.create(restMetadata.getUrl()))
                         .timeout(Duration.ofSeconds(60));
 
-                // Add headers
                 if (restMetadata.getHeaders() != null) {
                     restMetadata.getHeaders().forEach(requestBuilder::header);
                 }
 
-                // Set HTTP method and body
                 switch (restMetadata.getMethod().toUpperCase()) {
                     case "GET":
                         requestBuilder.GET();
@@ -82,11 +82,9 @@ public class RestCommand extends Command {
 
                 HttpRequest request = requestBuilder.build();
 
-                // Execute request
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
                 String responseBody = response.body();
 
-                // Send full response to StreamHandler
                 if (streamHandler != null) {
                     String logMessage = String.format("REST %s %s - Status: %d\n%s",
                             restMetadata.getMethod(), restMetadata.getUrl(), response.statusCode(), responseBody);
@@ -97,11 +95,9 @@ public class RestCommand extends Command {
                     );
                 }
 
-                // Handle clipboard functionality using the shared service
-                String clipboardContent = responseBody; // Default to full response
+                String clipboardContent = responseBody;
 
                 if (restMetadata.getToClipboard() != null && !restMetadata.getToClipboard().isEmpty()) {
-                    // Extract specific field from JSON response
                     try {
                         clipboardContent = extractJsonPath(responseBody, restMetadata.getToClipboard());
                     } catch (Exception e) {
@@ -111,7 +107,6 @@ public class RestCommand extends Command {
                     }
                 }
 
-                // Copy to clipboard using the shared service
                 boolean clipboardSuccess = ClipboardService.copyToClipboardSilent(clipboardContent);
 
                 if (clipboardSuccess) {
@@ -123,6 +118,10 @@ public class RestCommand extends Command {
                 long executionTime = System.currentTimeMillis() - startTime;
                 boolean success = response.statusCode() >= 200 && response.statusCode() < 300;
 
+                if (success) {
+                    captureResponseFieldsToGroupParametersIfConfigured(restMetadata, responseBody);
+                }
+
                 return new CommandResult(success, response.statusCode(), executionTime);
 
             } catch (Exception e) {
@@ -133,11 +132,80 @@ public class RestCommand extends Command {
         }, CommandExecutorService.getVirtualThreadExecutor());
     }
 
+    private void captureResponseFieldsToGroupParametersIfConfigured(RestCommandMetadata restMetadata, String responseBody) {
+        Map<String, String> capture = restMetadata.getCaptureToParameters();
+        if (capture == null || capture.isEmpty()) {
+            return;
+        }
+
+        Map<String, String> ctx = restMetadata.getExecutionContext();
+        String category = (ctx != null) ? ctx.get("category") : null;
+        String group = (ctx != null) ? ctx.get("group") : null;
+
+        if (category == null || group == null) {
+            // Executed directly, or registry didn't provide context => no persistence target.
+            return;
+        }
+
+        JsonObject jsonObject;
+        try (JsonReader jsonReader = Json.createReader(new StringReader(responseBody))) {
+            jsonObject = jsonReader.readObject();
+        } catch (Exception ignored) {
+            return; // not a JSON object response
+        }
+
+        Map<String, String> toPersist = new HashMap<>();
+
+        for (Map.Entry<String, String> e : capture.entrySet()) {
+            String paramName = e.getKey();
+            String jsonPath = e.getValue();
+            if (paramName == null || paramName.isBlank() || jsonPath == null || jsonPath.isBlank()) {
+                continue;
+            }
+
+            Optional<String> extracted = extractJsonPathNullable(jsonObject, jsonPath);
+            extracted.ifPresent(value -> {
+                if (!value.isBlank()) { // per your rule: empty string should not override
+                    toPersist.put(paramName, value);
+                }
+            });
+        }
+
+        if (!toPersist.isEmpty()) {
+            CommandRegistry.saveGroupParametersToConfig(category, group, toPersist);
+        }
+    }
+
+    private Optional<String> extractJsonPathNullable(JsonObject root, String jsonPath) {
+        String[] pathParts = jsonPath.split("\\.");
+        JsonValue current = root;
+
+        for (String part : pathParts) {
+            if (!(current instanceof JsonObject currentObj)) {
+                return Optional.empty();
+            }
+            if (!currentObj.containsKey(part)) {
+                return Optional.empty();
+            }
+            current = currentObj.get(part);
+            if (current == JsonValue.NULL) {
+                return Optional.empty(); // do not overwrite with null
+            }
+        }
+
+        if (current == null || current == JsonValue.NULL) {
+            return Optional.empty();
+        }
+        if (current.getValueType() == JsonValue.ValueType.STRING) {
+            return Optional.of(((jakarta.json.JsonString) current).getString());
+        }
+        return Optional.of(current.toString());
+    }
+
     private String extractJsonPath(String jsonResponse, String jsonPath) {
         try (JsonReader jsonReader = Json.createReader(new StringReader(jsonResponse))) {
             JsonObject jsonObject = jsonReader.readObject();
 
-            // Simple JSON path extraction (supports dot notation like "data.field")
             String[] pathParts = jsonPath.split("\\.");
             Object current = jsonObject;
 
@@ -153,7 +221,6 @@ public class RestCommand extends Command {
                 }
             }
 
-            // Return the string representation of the extracted value
             if (current instanceof jakarta.json.JsonString) {
                 return ((jakarta.json.JsonString) current).getString();
             } else {

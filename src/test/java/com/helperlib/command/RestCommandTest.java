@@ -47,6 +47,15 @@ public class RestCommandTest {
                 "status": "success"
             }""";
 
+    private static final String JSON_RESPONSE_NULL_AND_BLANK = """
+            {
+                "data": {
+                    "token": null,
+                    "blank": ""
+                },
+                "status": "success"
+            }""";
+
     private WireMockServer wireMockServer;
     private static final int MOCK_SERVER_PORT = 8089;
     private static final String MOCK_SERVER_URL = "http://localhost:" + MOCK_SERVER_PORT;
@@ -110,6 +119,13 @@ public class RestCommandTest {
                 .willReturn(aResponse()
                         .withStatus(500)
                         .withBody("Internal Server Error")));
+
+        // New: JSON response containing null and blank fields for capture tests
+        stubFor(get(urlEqualTo("/api/capture-null-blank"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(JSON_RESPONSE_NULL_AND_BLANK)));
     }
 
     @Test
@@ -552,6 +568,110 @@ public class RestCommandTest {
         assertEquals(201, result.exitCode(), "HTTP status code should be 201 (Created)");
 
         System.out.println("✓ Successfully verified REST header value templating");
+    }
+
+    @Test
+    void testRestCommand_captureToParameters_persistsOnSuccess() {
+        System.out.println("Testing REST captureToParameters persists group template parameters on success...");
+
+        String captureCommandName = "CaptureTokenAndEmail";
+        RestCommandMetadata captureMetadata = new RestCommandMetadata(
+                captureCommandName,
+                "Captures token and email into group parameters",
+                MOCK_SERVER_URL + "/api/users/123",
+                "GET",
+                null,
+                Map.of("Accept", "application/json"),
+                null
+        );
+        captureMetadata.setCaptureToParameters(Map.of(
+                "capturedToken", "data.token",
+                "capturedEmail", "data.user.email"
+        ));
+
+        CommandRegistry.saveCommandToConfig(TEST_CATEGORY, TEST_GROUP, captureMetadata);
+
+        CommandResult result = CommandRegistry.executeCommandFromConfig(
+                TEST_CATEGORY,
+                TEST_GROUP,
+                captureCommandName,
+                new NoOpStreamHandler()
+        ).join();
+
+        assertNotNull(result, "Command result should not be null");
+        assertTrue(result.success(), "Command execution should be successful");
+        assertEquals(200, result.exitCode(), "HTTP status code should be 200");
+
+        // Force reload from disk to validate persistence
+        CommandRegistry.getConfigService().reloadCache();
+
+        assertEquals("abc123xyz",
+                CommandRegistry.getGroupParameterFromConfig(TEST_CATEGORY, TEST_GROUP, "capturedToken").orElse(null),
+                "capturedToken should be persisted from response JSON");
+        assertEquals("john.doe@example.com",
+                CommandRegistry.getGroupParameterFromConfig(TEST_CATEGORY, TEST_GROUP, "capturedEmail").orElse(null),
+                "capturedEmail should be persisted from response JSON");
+
+        System.out.println("✓ Successfully verified REST captureToParameters persistence");
+    }
+
+    @Test
+    void testRestCommand_captureToParameters_skipsMissingNullAndBlank() {
+        System.out.println("Testing REST captureToParameters skips missing/null/blank fields...");
+
+        // Pre-seed existing params; capture should NOT overwrite them with null/blank
+        CommandRegistry.saveGroupParameterToConfig(TEST_CATEGORY, TEST_GROUP, "tokenParam", "existing-token");
+        CommandRegistry.saveGroupParameterToConfig(TEST_CATEGORY, TEST_GROUP, "blankParam", "existing-blank");
+        assertEquals("existing-token",
+                CommandRegistry.getGroupParameterFromConfig(TEST_CATEGORY, TEST_GROUP, "tokenParam").orElse(null));
+        assertEquals("existing-blank",
+                CommandRegistry.getGroupParameterFromConfig(TEST_CATEGORY, TEST_GROUP, "blankParam").orElse(null));
+
+        String captureCommandName = "CaptureSkipsNullBlankMissing";
+        RestCommandMetadata captureMetadata = new RestCommandMetadata(
+                captureCommandName,
+                "Captures should skip null/blank/missing without overwriting existing values",
+                MOCK_SERVER_URL + "/api/capture-null-blank",
+                "GET",
+                null,
+                Map.of("Accept", "application/json"),
+                null
+        );
+        captureMetadata.setCaptureToParameters(Map.of(
+                "tokenParam", "data.token",       // null -> skip
+                "blankParam", "data.blank",       // "" -> skip
+                "missingParam", "data.missing"    // missing -> skip
+        ));
+
+        CommandRegistry.saveCommandToConfig(TEST_CATEGORY, TEST_GROUP, captureMetadata);
+
+        CommandResult result = CommandRegistry.executeCommandFromConfig(
+                TEST_CATEGORY,
+                TEST_GROUP,
+                captureCommandName,
+                new NoOpStreamHandler()
+        ).join();
+
+        assertNotNull(result, "Command result should not be null");
+        assertTrue(result.success(), "Command execution should be successful");
+        assertEquals(200, result.exitCode(), "HTTP status code should be 200");
+
+        // Force reload from disk to validate persistence behavior
+        CommandRegistry.getConfigService().reloadCache();
+
+        // Existing values must remain unchanged
+        assertEquals("existing-token",
+                CommandRegistry.getGroupParameterFromConfig(TEST_CATEGORY, TEST_GROUP, "tokenParam").orElse(null),
+                "Null captures must not overwrite existing param values");
+        assertEquals("existing-blank",
+                CommandRegistry.getGroupParameterFromConfig(TEST_CATEGORY, TEST_GROUP, "blankParam").orElse(null),
+                "Blank captures must not overwrite existing param values");
+
+        // Missing path should not create a parameter
+        assertTrue(CommandRegistry.getGroupParameterFromConfig(TEST_CATEGORY, TEST_GROUP, "missingParam").isEmpty(),
+                "Missing JSON path must not create a new parameter");
+
+        System.out.println("✓ Successfully verified skip behavior for null/blank/missing captures");
     }
 
     @AfterEach

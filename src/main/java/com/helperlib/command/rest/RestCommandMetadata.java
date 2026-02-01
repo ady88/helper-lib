@@ -13,6 +13,10 @@ public class RestCommandMetadata extends CommandMetadata {
     private String toClipboard; // JSON path for partial response extraction
     private boolean showResultImmediately; // UI hint: surface result as soon as it is available
 
+    // New: capture output values into group template parameters
+    // key = parameter name, value = JSON path (dot notation)
+    private Map<String, String> captureToParameters;
+
     public RestCommandMetadata(String name, String description, String url, String method,
                                String requestBody, Map<String, String> headers, String toClipboard) {
         this(name, description, url, method, requestBody, headers, toClipboard, false);
@@ -76,5 +80,13 @@ public class RestCommandMetadata extends CommandMetadata {
 
     public void setShowResultImmediately(boolean showResultImmediately) {
         this.showResultImmediately = showResultImmediately;
+    }
+
+    public Map<String, String> getCaptureToParameters() {
+        return captureToParameters;
+    }
+
+    public void setCaptureToParameters(Map<String, String> captureToParameters) {
+        this.captureToParameters = captureToParameters;
     }
 }

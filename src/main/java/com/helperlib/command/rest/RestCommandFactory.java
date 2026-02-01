@@ -35,9 +35,19 @@ public class RestCommandFactory implements CommandFactory {
                     headers.put(key, value.toString().replaceAll("\"", "")));
         }
 
-        return new RestCommandMetadata(
+        RestCommandMetadata metadata = new RestCommandMetadata(
                 name, description, url, method, requestBody, headers, toClipboard, showResultImmediately
         );
+
+        // New: parse captureToParameters (paramName -> jsonPath)
+        if (jsonObject.containsKey("captureToParameters")) {
+            JsonObject captureJson = jsonObject.getJsonObject("captureToParameters");
+            Map<String, String> capture = new HashMap<>();
+            captureJson.forEach((k, v) -> capture.put(k, v.toString().replaceAll("\"", "")));
+            metadata.setCaptureToParameters(capture);
+        }
+
+        return metadata;
     }
 
     @Override
@@ -59,6 +69,13 @@ public class RestCommandFactory implements CommandFactory {
             JsonObjectBuilder headersBuilder = Json.createObjectBuilder();
             restMetadata.getHeaders().forEach(headersBuilder::add);
             builder.add("headers", headersBuilder.build());
+        }
+
+        // New: serialize captureToParameters if present
+        if (restMetadata.getCaptureToParameters() != null && !restMetadata.getCaptureToParameters().isEmpty()) {
+            JsonObjectBuilder captureBuilder = Json.createObjectBuilder();
+            restMetadata.getCaptureToParameters().forEach(captureBuilder::add);
+            builder.add("captureToParameters", captureBuilder.build());
         }
 
         return builder.build();

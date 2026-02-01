@@ -61,7 +61,7 @@ public final class RestTemplatingPolicy implements TemplatingPolicy {
             renderedHeaders = Map.of();
         }
 
-        return new RestCommandMetadata(
+        RestCommandMetadata rendered = new RestCommandMetadata(
                 m.getName(),
                 m.getDescription(),
                 renderedUrl,
@@ -71,5 +71,13 @@ public final class RestTemplatingPolicy implements TemplatingPolicy {
                 m.getToClipboard(),
                 m.isShowResultImmediately()
         );
+
+        // IMPORTANT: preserve non-templated REST metadata fields
+        rendered.setCaptureToParameters(m.getCaptureToParameters());
+
+        // Also preserve runtime execution context if it was already present
+        rendered.setExecutionContext(m.getExecutionContext());
+
+        return rendered;
     }
 }
